@@ -5,11 +5,13 @@ struct SharerDetailView: View {
     @Binding var path: [AppRoute]
     @Environment(\.dismiss) private var dismiss
     @State private var selectedThemeID: String
+    @State private var selectedDayIndex: Int
 
     init(sharer: Sharer, path: Binding<[AppRoute]>) {
         self.sharer = sharer
         self._path = path
         self._selectedThemeID = State(initialValue: sharer.themes.first?.id ?? "")
+        self._selectedDayIndex = State(initialValue: sharer.availableDays.firstIndex(where: { !$0.isFull }) ?? 0)
     }
 
     var body: some View {
@@ -22,6 +24,7 @@ struct SharerDetailView: View {
                     topicSwapCard
                     highlightsCard
                     themesSection
+                    availabilitySection
                     reviewsSection
                 }
                 .padding(.horizontal, 20)
@@ -223,6 +226,69 @@ struct SharerDetailView: View {
                 .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
             }
         }
+    }
+
+    private var availabilitySection: some View {
+        let day = selectedAvailabilityDay
+        return VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Label("近期可约时间", systemImage: "calendar")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(CoffeeLinkTheme.primaryText)
+                Spacer()
+                Text("未来 7 天")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(CoffeeLinkTheme.accent)
+                    .padding(.horizontal, 7)
+                    .padding(.vertical, 4)
+                    .background(CoffeeLinkTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
+                    .overlay(RoundedRectangle(cornerRadius: 5, style: .continuous).stroke(CoffeeLinkTheme.accent.opacity(0.28), lineWidth: 1))
+            }
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(Array(sharer.availableDays.enumerated()), id: \.element.id) { index, availableDay in
+                        Button { selectedDayIndex = index } label: {
+                            VStack(spacing: 4) {
+                                Text(availableDay.date).font(.system(size: 10)).foregroundStyle(CoffeeLinkTheme.secondaryText)
+                                Text(availableDay.dayOfWeek).font(.system(size: 12, weight: .bold)).foregroundStyle(index == selectedDayIndex ? CoffeeLinkTheme.accent : CoffeeLinkTheme.primaryText)
+                                Text(availableDay.isFull ? "已满" : "\(availableDay.slotsCount)个时段").font(.system(size: 10)).foregroundStyle(availableDay.isFull ? CoffeeLinkTheme.secondaryText : CoffeeLinkTheme.accent)
+                            }
+                            .frame(width: 76, height: 67)
+                            .background(index == selectedDayIndex ? CoffeeLinkTheme.elevatedSurface : CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(index == selectedDayIndex ? CoffeeLinkTheme.accent : CoffeeLinkTheme.border, lineWidth: index == selectedDayIndex ? 1.5 : 1))
+                            .opacity(availableDay.isFull ? 0.45 : 1)
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(availableDay.isFull)
+                    }
+                }
+            }
+            if !day.slots.isEmpty {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("可选时段").font(.system(size: 11, weight: .medium)).foregroundStyle(CoffeeLinkTheme.secondaryText)
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], alignment: .leading, spacing: 8) {
+                        ForEach(day.slots) { slot in
+                            Label(slot.label, systemImage: "clock")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundStyle(CoffeeLinkTheme.primaryText)
+                                .padding(.horizontal, 9)
+                                .frame(height: 32)
+                                .background(CoffeeLinkTheme.elevatedSurface, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                                .overlay(RoundedRectangle(cornerRadius: 8, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
+                        }
+                    }
+                }
+                .padding(.top, 2)
+            }
+        }
+        .padding(16)
+        .background(CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
+    }
+
+    private var selectedAvailabilityDay: AvailabilityDay {
+        guard sharer.availableDays.indices.contains(selectedDayIndex) else { return sharer.availableDays[0] }
+        return sharer.availableDays[selectedDayIndex]
     }
 
     private var actionBar: some View {

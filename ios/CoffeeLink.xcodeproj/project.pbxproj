@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		36C4DD37FEE50A972A7F741F /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5581D5C281185BF2951608E7 /* DemoData.swift */; };
 		499467FBE776AE120AC33AD7 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C3D1F1BFF19CD31DA43B34 /* RootView.swift */; };
+		4BB70A2B3E41BF28C5E0337A /* DiscoverFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE0DFDEE41DAEEBCE3E7DC /* DiscoverFilterTests.swift */; };
 		5A2882FD0CF928D78E6A3849 /* CoreFlowsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40AB52B40E3EEE347286BE45 /* CoreFlowsUITests.swift */; };
 		6D12E02CD1981FE9DA27CA00 /* CoffeeLinkApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5298FB2A8D39A08F11926E4B /* CoffeeLinkApp.swift */; };
 		6F4ED27151B4A4187FAD9A37 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 673F1A5EA31665F1E0AC9C44 /* AppStore.swift */; };
@@ -66,6 +67,7 @@
 		76FC2679A13BC8CCF3E61C93 /* CoffeeLinkTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoffeeLinkTabBar.swift; sourceTree = "<group>"; };
 		81F9F122FBD3FBAE6D9CD336 /* CoffeeLinkComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoffeeLinkComponents.swift; sourceTree = "<group>"; };
 		877F8DBA980AB047F1CF4735 /* AppRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoute.swift; sourceTree = "<group>"; };
+		94AE0DFDEE41DAEEBCE3E7DC /* DiscoverFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverFilterTests.swift; sourceTree = "<group>"; };
 		982561A522B74BE525FD35AA /* SharerCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharerCard.swift; sourceTree = "<group>"; };
 		99D318C91AA2A12E54ABDBFE /* CoffeeLinkTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CoffeeLinkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		B46685FAD6E10A5682A16795 /* CoffeeLinkForms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoffeeLinkForms.swift; sourceTree = "<group>"; };
@@ -173,6 +175,7 @@
 			children = (
 				1670A448DE84A5A4EACBF055 /* AppLaunchTests.swift */,
 				08A4DEF7DD65A2EEE948553E /* AppStoreTests.swift */,
+				94AE0DFDEE41DAEEBCE3E7DC /* DiscoverFilterTests.swift */,
 				02328F2C729766E481536E74 /* LocalPersistenceTests.swift */,
 			);
 			path = CoffeeLinkTests;
@@ -318,6 +321,7 @@
 			files = (
 				9C8F870721DA6615BB1EC555 /* AppLaunchTests.swift in Sources */,
 				79A7D31C7ED22FD21E61510B /* AppStoreTests.swift in Sources */,
+				4BB70A2B3E41BF28C5E0337A /* DiscoverFilterTests.swift in Sources */,
 				A0008910211593EFF4EBF065 /* LocalPersistenceTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

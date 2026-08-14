@@ -9,16 +9,7 @@ struct DiscoverView: View {
     private let industries = ["全部", "AI 与算法", "互联网产品", "研发与架构", "战略与咨询", "设计与体验", "出海与商业化"]
 
     private var filteredSharers: [Sharer] {
-        store.snapshot.sharers.filter { sharer in
-            let categoryMatches = selectedIndustry == "全部" || sharer.industry == selectedIndustry
-                || (selectedIndustry == "互联网产品" && (sharer.title.contains("产品") || sharer.company.contains("FinTech")))
-                || (selectedIndustry == "研发与架构" && (sharer.title.contains("技术") || sharer.highlights.joined().contains("架构")))
-                || (selectedIndustry == "设计与体验" && sharer.title.contains("设计"))
-                || (selectedIndustry == "出海与商业化" && (sharer.title.contains("出海") || sharer.title.contains("增长")))
-            let needle = searchQuery.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-            let searchMatches = needle.isEmpty || [sharer.name, sharer.title, sharer.company, sharer.industry ?? "", sharer.highlights.joined(), sharer.themes.map(\.title).joined()].joined().lowercased().contains(needle)
-            return categoryMatches && searchMatches
-        }
+        DiscoverFilter.filter(store.snapshot.sharers, industry: selectedIndustry, query: searchQuery)
     }
 
     var body: some View {
@@ -51,7 +42,7 @@ struct DiscoverView: View {
                     }
                 }
 
-                VStack(spacing: 14) {
+                VStack(spacing: 16) {
                     ForEach(filteredSharers) { sharer in
                         Button { path.append(.sharerDetail(sharer.id)) } label: { SharerCard(sharer: sharer) }
                             .buttonStyle(.plain)
@@ -64,5 +55,46 @@ struct DiscoverView: View {
             .padding(.bottom, 12)
         }
         .background(CoffeeLinkTheme.background)
+    }
+}
+
+enum DiscoverFilter {
+    static func filter(_ sharers: [Sharer], industry: String, query: String) -> [Sharer] {
+        sharers.filter { sharer in
+            categoryMatches(sharer, industry: industry) && searchMatches(sharer, query: query)
+        }
+    }
+
+    private static func categoryMatches(_ sharer: Sharer, industry: String) -> Bool {
+        guard industry != "全部" else { return true }
+        if sharer.industry == industry { return true }
+
+        switch industry {
+        case "AI 与算法":
+            return sharer.title.contains("AI") || sharer.highlights.contains { $0.contains("AI") || $0.contains("大模型") }
+        case "互联网产品":
+            return sharer.title.contains("产品") || sharer.company.contains("FinTech")
+        case "研发与架构":
+            return sharer.title.contains("研发") || sharer.title.contains("技术") || sharer.highlights.contains { $0.contains("架构") || $0.contains("并发") }
+        case "战略与咨询":
+            return sharer.title.contains("咨询") || sharer.title.contains("创始人") || sharer.highlights.contains { $0.contains("咨询") }
+        case "设计与体验":
+            return sharer.title.contains("设计") || sharer.title.contains("UX")
+        case "出海与商业化":
+            return sharer.title.contains("出海") || sharer.title.contains("增长")
+        default:
+            return false
+        }
+    }
+
+    private static func searchMatches(_ sharer: Sharer, query: String) -> Bool {
+        let needle = query.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !needle.isEmpty else { return true }
+        return sharer.name.lowercased().contains(needle)
+            || sharer.title.lowercased().contains(needle)
+            || sharer.company.lowercased().contains(needle)
+            || sharer.industry?.lowercased().contains(needle) == true
+            || sharer.highlights.contains { $0.lowercased().contains(needle) }
+            || sharer.themes.contains { $0.title.lowercased().contains(needle) || $0.description.lowercased().contains(needle) }
     }
 }

@@ -121,24 +121,34 @@ struct CoffeeTopBar: View {
     var trailingAction: (() -> Void)?
 
     var body: some View {
-        HStack(spacing: 12) {
+        ZStack {
             Text(title)
-                .font(.system(size: 22, weight: .bold))
+                .font(.system(size: 18, weight: .bold))
                 .foregroundStyle(CoffeeLinkTheme.primaryText)
-            Spacer()
-            if let trailingAction {
-                Button(action: trailingAction) {
-                    Image(systemName: "ellipsis")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(CoffeeLinkTheme.secondaryText)
-                        .frame(width: 44, height: 44)
-                }
-                .buttonStyle(.plain)
-                .accessibilityLabel("设置")
+            HStack {
+                Color.clear.frame(width: 44, height: 44)
+                Spacer()
+                trailingSlot
             }
+            .padding(.horizontal, 20)
         }
-        .padding(.horizontal, 20)
         .frame(height: 56)
         .background(CoffeeLinkTheme.background)
+    }
+
+    @ViewBuilder
+    private var trailingSlot: some View {
+        if let trailingAction {
+            Button(action: trailingAction) {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(CoffeeLinkTheme.secondaryText)
+                    .frame(width: 44, height: 44)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("设置")
+        } else {
+            Color.clear.frame(width: 44, height: 44)
+        }
     }
 }

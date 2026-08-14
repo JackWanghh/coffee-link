@@ -5,7 +5,7 @@ struct SharerCard: View {
 
     var body: some View {
         CoffeeCard {
-            VStack(alignment: .leading, spacing: 11) {
+            VStack(alignment: .leading, spacing: 15) {
                 HStack(alignment: .top, spacing: 12) {
                     avatar
                     VStack(alignment: .leading, spacing: 5) {
@@ -51,7 +51,8 @@ struct SharerCard: View {
                         .foregroundStyle(CoffeeLinkTheme.secondaryText)
                         .lineLimit(2)
                         .lineSpacing(3)
-                        .padding(.top, 10)
+                        .padding(.top, 13)
+                        .padding(.bottom, 6)
                         .overlay(alignment: .top) { Divider().overlay(CoffeeLinkTheme.border) }
                 }
                 HStack {
@@ -68,7 +69,8 @@ struct SharerCard: View {
                             .foregroundStyle(CoffeeLinkTheme.secondaryText)
                     }
                 }
-                .padding(.top, 10)
+                .padding(.top, 13)
+                .padding(.bottom, 10)
                 .overlay(alignment: .top) { Divider().overlay(CoffeeLinkTheme.border) }
             }
         }
