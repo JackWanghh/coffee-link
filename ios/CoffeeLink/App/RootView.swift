@@ -5,42 +5,61 @@ struct RootView: View {
     @State private var selectedTab: AppTab = .discover
     @State private var navigationPath: [AppRoute] = []
     @State private var sheetRoute: SheetRoute?
+    @State private var authMode: AuthMode?
+    @State private var pendingInvitation: InvitationDraft?
+    @State private var launchInvite = false
+    @State private var launchCheckoutID: String?
+    private let paymentResult: PaymentResult?
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
         let persistence: LocalPersistence = arguments.contains("-ui-testing") || arguments.contains("-reset-demo") ? .inMemory : .live
-        _store = State(initialValue: AppStore(snapshot: .demo, persistence: persistence))
+        var snapshot = AppSnapshot.demo
+        let requestedScreen = Self.launchValue(arguments: arguments, flag: "-present") ?? Self.launchValue(arguments: arguments, flag: "-screen")
+        if arguments.contains("-logged-out") || requestedScreen == "invite" { snapshot.currentUser.isLoggedIn = false }
+        _store = State(initialValue: AppStore(snapshot: snapshot, persistence: persistence))
+        let mode = Self.launchValue(arguments: arguments, flag: "-auth-mode")
+        _authMode = State(initialValue: requestedScreen == "login" || arguments.contains("-present-login") ? .login : requestedScreen == "register" || arguments.contains("-present-register") ? .register : requestedScreen == "reset" || arguments.contains("-present-reset") ? .reset : AuthMode(rawValue: mode ?? ""))
+        _launchInvite = State(initialValue: requestedScreen == "invite" || arguments.contains("-present-invite"))
+        _launchCheckoutID = State(initialValue: requestedScreen == "checkout" || arguments.contains("-present-checkout") || Self.launchValue(arguments: arguments, flag: "-payment-result") != nil ? "ord-out-accepted-pay-1" : nil)
+        paymentResult = PaymentResult(rawValue: Self.launchValue(arguments: arguments, flag: "-payment-result") ?? "")
     }
 
     var body: some View {
-        NavigationStack(path: $navigationPath) {
-            VStack(spacing: 0) {
-                CoffeeTopBar(title: selectedTab.title) {
-                    sheetRoute = .settings
+        ZStack {
+            NavigationStack(path: $navigationPath) {
+                VStack(spacing: 0) {
+                    CoffeeTopBar(title: selectedTab.title) {
+                        sheetRoute = .settings
+                    }
+                    tabContent
                 }
-                tabContent
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(CoffeeLinkTheme.background)
+                .navigationBarHidden(true)
+                .navigationDestination(for: AppRoute.self, destination: routeDestination)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(CoffeeLinkTheme.background)
-            .navigationBarHidden(true)
-            .navigationDestination(for: AppRoute.self, destination: routeDestination)
-        }
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if navigationPath.isEmpty {
-                CoffeeLinkTabBar(
-                    selectedTab: $selectedTab,
-                    hasUnreadChats: store.snapshot.sessions.contains { $0.receiverID == store.snapshot.currentUser.id && $0.status == .pendingResponse }
-                )
+            .safeAreaInset(edge: .bottom, spacing: 0) {
+                if navigationPath.isEmpty {
+                    CoffeeLinkTabBar(
+                        selectedTab: $selectedTab,
+                        hasUnreadChats: store.snapshot.sessions.contains { $0.receiverID == store.snapshot.currentUser.id && $0.status == .pendingResponse }
+                    )
+                }
+            }
+            .sheet(item: $sheetRoute) { route in
+                SheetPlaceholderView(route: route)
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+            }
+            if let authMode {
+                AuthFlowView(store: store, initialMode: authMode, onAuthenticated: resumePendingInvitation, onDismiss: { self.authMode = nil })
+                    .transition(.opacity)
+                    .zIndex(2)
             }
         }
-        .sheet(item: $sheetRoute) { route in
-            SheetPlaceholderView(route: route)
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
-        }
-        .onChange(of: selectedTab) { _, _ in
-            navigationPath.removeAll()
-        }
+        .onAppear { presentLaunchRouteIfNeeded() }
+        .onChange(of: selectedTab) { _, _ in navigationPath.removeAll() }
         .preferredColorScheme(.dark)
     }
 
@@ -67,15 +86,55 @@ struct RootView: View {
             } else {
                 RoutePlaceholderView(title: "分享者详情", subtitle: "CoffeeLink")
             }
-        case .createInvitation(_, let type, _):
-            RoutePlaceholderView(title: type == .coffee ? "发起电子咖啡" : "发起主题互换", subtitle: "选择主题与可约时间")
-        case .checkout:
-            RoutePlaceholderView(title: "邀请付款", subtitle: "确认电子咖啡订单")
-        case .chatDetail:
-            RoutePlaceholderView(title: "对谈详情", subtitle: "查看邀请与日程")
+        case .createInvitation(let sharerID, let type, let themeID):
+            if let sharer = store.snapshot.sharers.first(where: { $0.id == sharerID }) {
+                CreateInvitationView(store: store, sharer: sharer, type: type, themeID: themeID, onRequireAuthentication: { draft in
+                    pendingInvitation = draft
+                    authMode = .login
+                }, onSubmitted: openChatDetail, onDismiss: { _ = navigationPath.popLast() })
+            } else { RoutePlaceholderView(title: "发起邀请", subtitle: "未找到分享者") }
+        case .checkout(let id):
+            BookingCheckoutView(store: store, sessionID: id, forcedResult: paymentResult, onCompleted: openChatDetail, onDismiss: { _ = navigationPath.popLast() })
+        case .chatDetail(let id):
+            ChatDetailPreview(session: store.session(id: id))
         case .sharingCenter:
             RoutePlaceholderView(title: "分享中心", subtitle: "管理主题、饮品与开放状态")
         }
+    }
+
+    private func openChatDetail(_ id: String) {
+        navigationPath = [.chatDetail(id)]
+    }
+
+    private func resumePendingInvitation() {
+        authMode = nil
+        guard let draft = pendingInvitation else { return }
+        pendingInvitation = nil
+        do {
+            let id: String
+            if draft.type == .coffee {
+                id = try store.submitInvitation(sharerID: draft.sharerID, type: .coffee, themeID: draft.selectedThemeID, question: draft.question, slotIDs: draft.selectedSlotIDs)
+            } else {
+                id = try store.submitTopicSwap(sharerID: draft.sharerID, requestedThemeID: draft.selectedThemeID, offeredThemeID: draft.offeredThemeID ?? "", question: draft.question, offering: draft.offering, slotIDs: draft.selectedSlotIDs)
+            }
+            openChatDetail(id)
+        } catch { store.lastErrorMessage = error.localizedDescription }
+    }
+
+    private func presentLaunchRouteIfNeeded() {
+        if launchInvite {
+            launchInvite = false
+            navigationPath = [.sharerDetail("elena-rodriguez"), .createInvitation(sharerID: "elena-rodriguez", type: .coffee, themeID: "product-roadmap")]
+        }
+        if let id = launchCheckoutID {
+            launchCheckoutID = nil
+            navigationPath = [.checkout(id)]
+        }
+    }
+
+    private static func launchValue(arguments: [String], flag: String) -> String? {
+        guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
     }
 }
 
@@ -242,6 +301,29 @@ private struct RoutePlaceholderView: View {
         .background(CoffeeLinkTheme.background)
         .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+private struct ChatDetailPreview: View {
+    let session: ChatSession?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            Text("对谈详情").font(.system(size: 24, weight: .bold))
+            if let session {
+                CoffeeCard {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack { Text(session.type == .coffee ? "电子咖啡邀请" : "主题互换").font(.system(size: 13, weight: .semibold)); Spacer(); CoffeeBadge(session.statusLabel, tone: session.status == .booked ? .success : .accent) }
+                        Text(session.themeTitle).font(.system(size: 18, weight: .bold))
+                        Text(session.question).font(.system(size: 14)).foregroundStyle(CoffeeLinkTheme.secondaryText).lineSpacing(3)
+                        Text(session.confirmedSlot ?? "等待对方确认时段").font(.system(size: 13, weight: .semibold)).foregroundStyle(CoffeeLinkTheme.accent)
+                    }
+                    .foregroundStyle(CoffeeLinkTheme.primaryText)
+                }
+            }
+            Spacer()
+        }
+        .padding(20).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading).background(CoffeeLinkTheme.background).navigationBarHidden(true)
     }
 }
 

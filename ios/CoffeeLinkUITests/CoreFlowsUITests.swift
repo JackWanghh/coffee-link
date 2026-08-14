@@ -52,6 +52,43 @@ final class CoreFlowsUITests: XCTestCase {
     }
 
     @MainActor
+    func testLoggedOutCoffeeInvitationResumesAfterLogin() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-reset-demo", "-logged-out", "-prefill-invitation"]
+        app.launch()
+
+        app.buttons["sharer.elena-rodriguez"].tap()
+        app.buttons["请喝咖啡（¥22）"].tap()
+        app.buttons["提交咖啡邀请  →"].tap()
+
+        XCTAssertTrue(app.staticTexts["密码登录"].waitForExistence(timeout: 2))
+        app.buttons["立即登录  →"].tap()
+        XCTAssertTrue(app.staticTexts["对谈详情"].waitForExistence(timeout: 2))
+    }
+
+    @MainActor
+    func testAuthenticationLaunchModes() {
+        for (argument, expectedTitle) in [("-present-login", "密码登录"), ("-present-register", "新用户注册"), ("-present-reset", "找回密码")] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-ui-testing", "-reset-demo", argument]
+            app.launch()
+            XCTAssertTrue(app.staticTexts[expectedTitle].waitForExistence(timeout: 2))
+            app.terminate()
+        }
+    }
+
+    @MainActor
+    func testPaymentResultLaunchArguments() {
+        for (result, expectedTitle) in [("success", "支付成功"), ("failure", "支付失败"), ("cancelled", "已取消支付")] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-ui-testing", "-reset-demo", "-payment-result", result]
+            app.launch()
+            XCTAssertTrue(app.staticTexts[expectedTitle].waitForExistence(timeout: 2))
+            app.terminate()
+        }
+    }
+
+    @MainActor
     private func launchResetDemo() -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-demo"]

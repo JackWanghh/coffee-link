@@ -24,6 +24,7 @@ final class AppStore {
     private(set) var snapshot: AppSnapshot
     var lastErrorMessage: String?
     private let persistence: LocalPersistence
+    private var mockPassword = "Pass123456"
 
     init(snapshot: AppSnapshot = .demo, persistence: LocalPersistence = .live) {
         self.persistence = persistence
@@ -211,6 +212,39 @@ final class AppStore {
 
     func updateProfile(_ profile: UserProfile) {
         snapshot.currentUser = profile
+        save()
+    }
+
+    func login(phone: String, password: String) -> Bool {
+        let normalizedPhone = AuthValidator.normalizedPhone(phone)
+        guard AuthValidator.isMainlandPhone(normalizedPhone), password == mockPassword else {
+            lastErrorMessage = "手机号或密码不正确"
+            return false
+        }
+        snapshot.currentUser.phone = normalizedPhone
+        snapshot.currentUser.isLoggedIn = true
+        lastErrorMessage = nil
+        save()
+        return true
+    }
+
+    func register(phone: String, password: String) {
+        snapshot.currentUser.phone = AuthValidator.normalizedPhone(phone)
+        snapshot.currentUser.isLoggedIn = false
+        mockPassword = password
+        lastErrorMessage = nil
+        save()
+    }
+
+    func resetPassword(_ password: String) {
+        mockPassword = password
+        snapshot.currentUser.isLoggedIn = false
+        lastErrorMessage = nil
+        save()
+    }
+
+    func setLoggedIn(_ isLoggedIn: Bool) {
+        snapshot.currentUser.isLoggedIn = isLoggedIn
         save()
     }
 
