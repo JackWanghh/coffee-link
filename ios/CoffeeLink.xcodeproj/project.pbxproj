@@ -17,6 +17,7 @@
 		79A7D31C7ED22FD21E61510B /* AppStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08A4DEF7DD65A2EEE948553E /* AppStoreTests.swift */; };
 		80B826B25317EAA329E103A7 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = DC542DA249B9E5E19ACED67F /* Assets.xcassets */; };
 		89D6C637E1ADD05C15975608 /* CoffeeLinkTabBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76FC2679A13BC8CCF3E61C93 /* CoffeeLinkTabBar.swift */; };
+		8C3C56744F97ED6DC00AF3EA /* CredentialPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7B373E8178E1728F4075DBED /* CredentialPersistence.swift */; };
 		8F31B812A9F0364371E64AE4 /* CoffeeLinkForms.swift in Sources */ = {isa = PBXBuildFile; fileRef = B46685FAD6E10A5682A16795 /* CoffeeLinkForms.swift */; };
 		9BB927771EC0E905F156C39B /* AuthValidationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4FAE9A11126DFE2F97E6CA43 /* AuthValidationTests.swift */; };
 		9C8F870721DA6615BB1EC555 /* AppLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1670A448DE84A5A4EACBF055 /* AppLaunchTests.swift */; };
@@ -71,6 +72,7 @@
 		6F5DAF36AC582CFC4BDD892D /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		74C3D1F1BFF19CD31DA43B34 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
 		76FC2679A13BC8CCF3E61C93 /* CoffeeLinkTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoffeeLinkTabBar.swift; sourceTree = "<group>"; };
+		7B373E8178E1728F4075DBED /* CredentialPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialPersistence.swift; sourceTree = "<group>"; };
 		81F9F122FBD3FBAE6D9CD336 /* CoffeeLinkComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoffeeLinkComponents.swift; sourceTree = "<group>"; };
 		877F8DBA980AB047F1CF4735 /* AppRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoute.swift; sourceTree = "<group>"; };
 		894E4E19151542F3F0D19B8E /* BookingCheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingCheckoutView.swift; sourceTree = "<group>"; };
@@ -182,6 +184,7 @@
 		DB9075FFCF9FAB94E4923119 /* Data */ = {
 			isa = PBXGroup;
 			children = (
+				7B373E8178E1728F4075DBED /* CredentialPersistence.swift */,
 				5581D5C281185BF2951608E7 /* DemoData.swift */,
 				24BE0101B534E78C50827C79 /* LocalPersistence.swift */,
 			);
@@ -370,6 +373,7 @@
 				C38440596AA24C5CE6D32973 /* CoffeeLinkTheme.swift in Sources */,
 				B70E6456243D9F8BDF49CE34 /* CoffeeModels.swift in Sources */,
 				AF06662C5BA24009D2763933 /* CreateInvitationView.swift in Sources */,
+				8C3C56744F97ED6DC00AF3EA /* CredentialPersistence.swift in Sources */,
 				36C4DD37FEE50A972A7F741F /* DemoData.swift in Sources */,
 				EC05F1F87EA6F49D3AACC089 /* DiscoverView.swift in Sources */,
 				77FF6FBAE2B47D73993A5C30 /* LocalPersistence.swift in Sources */,

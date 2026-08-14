@@ -78,6 +78,20 @@ final class CoreFlowsUITests: XCTestCase {
     }
 
     @MainActor
+    func testInteractiveRegistrationAndResetReturnToLogin() {
+        for (mode, submitTitle) in [("register", "完成注册并登录"), ("reset", "重置密码并返回登录")] {
+            let app = XCUIApplication()
+            app.launchArguments = ["-ui-testing", "-reset-demo", "-auth-mode", mode]
+            app.launch()
+
+            XCTAssertTrue(app.buttons[submitTitle].waitForExistence(timeout: 2))
+            app.buttons[submitTitle].tap()
+            XCTAssertTrue(app.staticTexts["密码登录"].waitForExistence(timeout: 2))
+            app.terminate()
+        }
+    }
+
+    @MainActor
     func testPaymentResultLaunchArguments() {
         for (result, expectedTitle) in [("success", "支付成功"), ("failure", "支付失败"), ("cancelled", "已取消支付")] {
             let app = XCUIApplication()

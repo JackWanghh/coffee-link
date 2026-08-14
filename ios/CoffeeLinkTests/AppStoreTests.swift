@@ -3,6 +3,52 @@ import XCTest
 
 final class AppStoreTests: XCTestCase {
     @MainActor
+    func testRegistrationCredentialSurvivesAppStoreRebuild() {
+        let credentials = CredentialPersistence.inMemory()
+        let firstStore = AppStore(snapshot: .demo, persistence: .inMemory, credentialPersistence: credentials)
+
+        XCTAssertTrue(firstStore.register(phone: "13800138000", password: "NewPass123"))
+
+        let rebuiltStore = AppStore(snapshot: .demo, persistence: .inMemory, credentialPersistence: credentials)
+        XCTAssertTrue(rebuiltStore.login(phone: "13800138000", password: "NewPass123"))
+        XCTAssertFalse(rebuiltStore.login(phone: "13800138000", password: "Pass123456"))
+    }
+
+    @MainActor
+    func testResetCredentialSurvivesAppStoreRebuildAndInvalidatesPriorPassword() {
+        let credentials = CredentialPersistence.inMemory(initialPassword: "Original123")
+        let firstStore = AppStore(snapshot: .demo, persistence: .inMemory, credentialPersistence: credentials)
+
+        XCTAssertTrue(firstStore.resetPassword("Replacement123"))
+
+        let rebuiltStore = AppStore(snapshot: .demo, persistence: .inMemory, credentialPersistence: credentials)
+        XCTAssertTrue(rebuiltStore.login(phone: "13800138000", password: "Replacement123"))
+        XCTAssertFalse(rebuiltStore.login(phone: "13800138000", password: "Original123"))
+    }
+
+    @MainActor
+    func testCredentialSaveFailureIsVisibleAndDoesNotReportRegistrationSuccess() {
+        let store = AppStore(snapshot: .demo, persistence: .inMemory, credentialPersistence: .failing)
+        let initialUser = store.snapshot.currentUser
+
+        XCTAssertFalse(store.register(phone: "13800138000", password: "NewPass123"))
+        XCTAssertEqual(store.lastErrorMessage, "凭据保存失败，请稍后重试")
+        XCTAssertEqual(store.snapshot.currentUser, initialUser)
+    }
+
+    @MainActor
+    func testResetDemoDataClearsIsolatedCredential() {
+        let credentials = CredentialPersistence.inMemory(initialPassword: "Replacement123")
+        let store = AppStore(snapshot: .demo, persistence: .inMemory, credentialPersistence: credentials)
+
+        store.resetDemoData()
+
+        let rebuiltStore = AppStore(snapshot: .demo, persistence: .inMemory, credentialPersistence: credentials)
+        XCTAssertTrue(rebuiltStore.login(phone: "13800138000", password: "Pass123456"))
+        XCTAssertFalse(rebuiltStore.login(phone: "13800138000", password: "Replacement123"))
+    }
+
+    @MainActor
     func testCoffeeInvitationRequiresPaymentAfterAcceptance() throws {
         let store = AppStore(snapshot: .demo, persistence: .inMemory)
         let id = try store.submitInvitation(

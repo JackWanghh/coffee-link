@@ -25,6 +25,16 @@ struct AuthDraft: Equatable {
 
     static let loginDemo = AuthDraft(phone: "13800138000", otp: "", password: "Pass123456", confirmPassword: "", acceptedTerms: false)
     static let registerDemo = AuthDraft(phone: "13800138000", otp: "123456", password: "Pass123456", confirmPassword: "Pass123456", acceptedTerms: true)
+
+    static func visualReference(for mode: AuthMode) -> AuthDraft {
+        AuthDraft(
+            phone: "138****8888",
+            otp: "",
+            password: "",
+            confirmPassword: "",
+            acceptedTerms: mode == .register
+        )
+    }
 }
 
 enum AuthValidationError: Equatable {
@@ -83,26 +93,35 @@ struct AuthFlowView: View {
     @State private var draft: AuthDraft
     @State private var errorMessage: String?
     @FocusState private var focusedField: Field?
+    private let usesReferencePresentation: Bool
 
     private enum Field: Hashable { case phone, otp, password, confirmation }
 
-    init(store: AppStore, initialMode: AuthMode = .login, onAuthenticated: @escaping () -> Void, onDismiss: @escaping () -> Void) {
+    init(store: AppStore, initialMode: AuthMode = .login, referencePresentation: Bool = false, onAuthenticated: @escaping () -> Void, onDismiss: @escaping () -> Void) {
         self.store = store
         self.onAuthenticated = onAuthenticated
         self.onDismiss = onDismiss
+        self.usesReferencePresentation = referencePresentation
         _mode = State(initialValue: initialMode)
-        _draft = State(initialValue: initialMode == .login ? .loginDemo : .registerDemo)
+        _draft = State(initialValue: referencePresentation ? .visualReference(for: initialMode) : initialMode == .login ? .loginDemo : .registerDemo)
     }
 
     var body: some View {
         ZStack {
-            CoffeeLinkTheme.background.opacity(0.87).ignoresSafeArea()
-            Circle().fill(CoffeeLinkTheme.accent.opacity(0.15)).frame(width: 240, height: 240).blur(radius: 65).offset(x: -105, y: -270)
-            Circle().fill(Color.orange.opacity(0.08)).frame(width: 200, height: 200).blur(radius: 70).offset(x: 105, y: 270)
-            ScrollView(showsIndicators: false) {
-                panel
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 72)
+            CoffeeLinkTheme.background.opacity(0.96).ignoresSafeArea()
+            Color.black.opacity(0.22).ignoresSafeArea()
+            Circle().fill(CoffeeLinkTheme.accent.opacity(0.19)).frame(width: 250, height: 250).blur(radius: 70).offset(x: -105, y: -270)
+            Circle().fill(Color.orange.opacity(0.10)).frame(width: 220, height: 220).blur(radius: 76).offset(x: 105, y: 270)
+            GeometryReader { proxy in
+                ScrollView(showsIndicators: false) {
+                    VStack {
+                        panel
+                    }
+                    .frame(maxWidth: .infinity)
+                        .frame(minHeight: proxy.size.height, alignment: .center)
+                        .padding(.horizontal, 16)
+                }
+                .scrollDismissesKeyboard(.interactively)
             }
         }
         .accessibilityIdentifier("auth.overlay")
@@ -136,7 +155,7 @@ struct AuthFlowView: View {
                 if mode != .login { passwordField(label: mode == .reset ? "确认新密码 (再次输入)" : "确认密码 (再次输入)", binding: $draft.confirmPassword, field: .confirmation, placeholder: mode == .reset ? "再次输入新密码校对" : "再次输入相同密码确认") }
                 if mode == .login { demoHint } else if mode == .register { agreement }
                 if let errorMessage { Text(errorMessage).font(.system(size: 12, weight: .medium)).foregroundStyle(Color.red.opacity(0.9)) }
-                CoffeePrimaryButton(title: primaryTitle, isEnabled: isPrimaryEnabled, accessibilityIdentifier: "auth.submit") { submit() }
+                CoffeePrimaryButton(title: primaryTitle, isEnabled: isPrimaryEnabled || usesReferencePresentation, accessibilityIdentifier: "auth.submit") { submit() }
                 switchLinks
             }
             .padding(20)
@@ -153,7 +172,7 @@ struct AuthFlowView: View {
             HStack(spacing: 8) {
                 Image(systemName: "iphone").foregroundStyle(CoffeeLinkTheme.secondaryText)
                 Text("+86").font(.system(size: 14)).foregroundStyle(CoffeeLinkTheme.secondaryText)
-                TextField("+86 138****8888", text: $draft.phone)
+                TextField("138****8888", text: $draft.phone)
                     .keyboardType(.phonePad).textContentType(.telephoneNumber).focused($focusedField, equals: .phone)
                     .foregroundStyle(CoffeeLinkTheme.primaryText).tint(CoffeeLinkTheme.accent)
             }
@@ -211,17 +230,38 @@ struct AuthFlowView: View {
         switch mode { case .login: AuthValidator.isMainlandPhone(AuthValidator.normalizedPhone(draft.phone)) && !draft.password.isEmpty; case .register: AuthValidator.registrationErrors(draft).isEmpty; case .reset: AuthValidator.resetErrors(draft).isEmpty }
     }
 
-    private func setMode(_ newMode: AuthMode) { mode = newMode; errorMessage = nil; if newMode != .login && draft.otp.isEmpty { draft.otp = "123456" }; if newMode == .login { draft.confirmPassword = "" } }
+    private func setMode(_ newMode: AuthMode) {
+        mode = newMode
+        errorMessage = nil
+        if usesReferencePresentation {
+            draft = .visualReference(for: newMode)
+        } else {
+            if newMode != .login && draft.otp.isEmpty { draft.otp = "123456" }
+            if newMode == .login { draft.confirmPassword = "" }
+        }
+    }
 
     private func submit() {
         switch mode {
         case .login:
             if store.login(phone: draft.phone, password: draft.password) { onAuthenticated() } else { errorMessage = store.lastErrorMessage }
         case .register:
-            guard let first = AuthValidator.registrationErrors(draft).first else { store.register(phone: draft.phone, password: draft.password); draft.password = ""; draft.confirmPassword = ""; setMode(.login); return }
+            guard let first = AuthValidator.registrationErrors(draft).first else {
+                guard store.register(phone: draft.phone, password: draft.password) else { errorMessage = store.lastErrorMessage; return }
+                draft.password = ""
+                draft.confirmPassword = ""
+                setMode(.login)
+                return
+            }
             errorMessage = first.message
         case .reset:
-            guard let first = AuthValidator.resetErrors(draft).first else { store.resetPassword(draft.password); draft.password = ""; draft.confirmPassword = ""; setMode(.login); return }
+            guard let first = AuthValidator.resetErrors(draft).first else {
+                guard store.resetPassword(draft.password) else { errorMessage = store.lastErrorMessage; return }
+                draft.password = ""
+                draft.confirmPassword = ""
+                setMode(.login)
+                return
+            }
             errorMessage = first.message
         }
     }

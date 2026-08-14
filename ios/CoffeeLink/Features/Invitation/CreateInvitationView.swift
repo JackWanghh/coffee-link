@@ -26,6 +26,7 @@ struct CreateInvitationView: View {
     let onRequireAuthentication: (InvitationDraft) -> Void
     let onSubmitted: (String) -> Void
     let onDismiss: () -> Void
+    private let isReferencePresentation: Bool
     @State private var draft: InvitationDraft
     @State private var errorMessage: String?
 
@@ -37,15 +38,18 @@ struct CreateInvitationView: View {
         self.onRequireAuthentication = onRequireAuthentication
         self.onSubmitted = onSubmitted
         self.onDismiss = onDismiss
-        let prefilled = ProcessInfo.processInfo.arguments.contains("-prefill-invitation")
-        _draft = State(initialValue: InvitationDraft(sharerID: sharer.id, type: type, selectedThemeID: themeID ?? sharer.themes.first?.id ?? "", selectedSlotIDs: prefilled ? sharer.availableDays.lazy.flatMap(\.slots).prefix(1).map(\.id) : [], question: prefilled ? "如何规划产品路线图并平衡技术债务？" : "", offeredThemeID: store.snapshot.currentUser.myThemes.first?.id, offering: prefilled ? "我可以分享 AI 产品从发现到上线的复盘。" : ""))
+        let arguments = ProcessInfo.processInfo.arguments
+        let prefilled = arguments.contains("-prefill-invitation")
+        isReferencePresentation = arguments.contains("-present-invite")
+        let selectedFirstSlot = prefilled || isReferencePresentation
+        _draft = State(initialValue: InvitationDraft(sharerID: sharer.id, type: type, selectedThemeID: themeID ?? sharer.themes.first?.id ?? "", selectedSlotIDs: selectedFirstSlot ? sharer.availableDays.lazy.flatMap(\.slots).prefix(1).map(\.id) : [], question: prefilled ? "如何规划产品路线图并平衡技术债务？" : "", offeredThemeID: store.snapshot.currentUser.myThemes.first?.id, offering: prefilled ? "我可以分享 AI 产品从发现到上线的复盘。" : ""))
     }
 
     var body: some View {
         VStack(spacing: 0) {
             navigationBar
             ScrollView(showsIndicators: false) {
-                VStack(alignment: .leading, spacing: 18) {
+                VStack(alignment: .leading, spacing: 14) {
                     sharerCard
                     invitationTypePicker
                     drinkInfo
@@ -104,7 +108,7 @@ struct CreateInvitationView: View {
             if draft.type == .coffee {
                 HStack(alignment: .top, spacing: 10) {
                     Image(systemName: "cup.and.saucer.fill").foregroundStyle(CoffeeLinkTheme.primaryText).frame(width: 30, height: 30).background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                    VStack(alignment: .leading, spacing: 5) { Text("请对方喝一杯「" + sharer.signatureDrink.name + "」表达感谢（¥" + decimalText(sharer.signatureDrink.price) + "）").font(.system(size: 13, weight: .bold)); Text("提交邀请暂不扣费。若对方确认您的问题并在12小时内接受邀请后，您再进行支付。").font(.system(size: 11)).foregroundStyle(CoffeeLinkTheme.secondaryText).lineSpacing(2) }.foregroundStyle(CoffeeLinkTheme.primaryText)
+                    VStack(alignment: .leading, spacing: 5) { Text("请对方喝一杯「" + sharer.signatureDrink.name + "」表达感谢（¥" + decimalText(sharer.signatureDrink.price) + "）").font(.system(size: 13, weight: .bold)); Text("提交邀请暂不扣费。若对方确认你的问题并在12小时内接受邀请后，您再进行支付。").font(.system(size: 11)).foregroundStyle(CoffeeLinkTheme.secondaryText).lineSpacing(2) }.foregroundStyle(CoffeeLinkTheme.primaryText)
                 }.padding(14).background(CoffeeLinkTheme.accent.opacity(0.13), in: RoundedRectangle(cornerRadius: 13, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 13, style: .continuous).stroke(CoffeeLinkTheme.accent.opacity(0.35), lineWidth: 1))
             }
         }
@@ -135,7 +139,7 @@ struct CreateInvitationView: View {
     private var questionSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack { Text(draft.type == .coffee ? "2. 想请教的具体问题 *" : "4. 想请教的具体问题 *").font(.system(size: 15, weight: .bold)); Spacer(); Text("\(draft.question.count)/300").font(.system(size: 11, weight: .medium)).foregroundStyle(draft.question.count > 300 ? .red : CoffeeLinkTheme.secondaryText) }.foregroundStyle(CoffeeLinkTheme.primaryText)
-            TextField("请清晰描述您的背景与最想了解的职业经历/关键问题（建议 20~300 字）", text: $draft.question, axis: .vertical)
+            TextField("请清晰描述你的背景与最想了解的职业经历/关键问题（建议 20~300 字）。分享者将根据问题判断是否适合交流并决定是否接受。", text: $draft.question, axis: .vertical)
                 .font(.system(size: 14)).foregroundStyle(CoffeeLinkTheme.primaryText).tint(CoffeeLinkTheme.accent)
                 .lineLimit(4...6).frame(minHeight: 100, alignment: .topLeading).padding(11)
                 .background(CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -147,7 +151,7 @@ struct CreateInvitationView: View {
 
     private var slotSection: some View {
         VStack(alignment: .leading, spacing: 11) {
-            HStack { Text("选择期望时段 (最多3个) *").font(.system(size: 15, weight: .bold)); Spacer(); Text("已选 \(draft.selectedSlotIDs.count)/3").font(.system(size: 11, weight: .medium)).foregroundStyle(CoffeeLinkTheme.accent) }.foregroundStyle(CoffeeLinkTheme.primaryText)
+            HStack { Text(draft.type == .coffee ? "3. 选择期望时段 (最多3个) *" : "5. 选择期望时段 (最多3个) *").font(.system(size: 15, weight: .bold)); Spacer(); Text("已选 \(draft.selectedSlotIDs.count)/3").font(.system(size: 11, weight: .medium)).foregroundStyle(CoffeeLinkTheme.accent) }.foregroundStyle(CoffeeLinkTheme.primaryText)
             ForEach(sharer.availableDays.filter { !$0.isFull }) { day in
                 VStack(alignment: .leading, spacing: 8) { Text("\(day.date) · \(day.dayOfWeek)").font(.system(size: 12, weight: .semibold)).foregroundStyle(CoffeeLinkTheme.secondaryText); LazyVGrid(columns: [GridItem(.adaptive(minimum: 102), spacing: 8)], alignment: .leading, spacing: 8) { ForEach(day.slots) { slot in slotButton(slot) } } }
             }
@@ -162,9 +166,9 @@ struct CreateInvitationView: View {
     private var submitBar: some View {
         HStack(spacing: 16) {
             VStack(alignment: .leading, spacing: 2) { Text(draft.type == .coffee ? "签名咖啡（接受后付）" : "主题互换（无需付款）").font(.system(size: 11)).foregroundStyle(CoffeeLinkTheme.secondaryText); Text(draft.type == .coffee ? "¥" + decimalText(sharer.signatureDrink.price) : "¥0").font(.system(size: 20, weight: .bold)).foregroundStyle(CoffeeLinkTheme.accent) }
-            CoffeePrimaryButton(title: draft.type == .coffee ? "提交咖啡邀请  →" : "提交互换邀请  →", isEnabled: draft.canSubmit, accessibilityIdentifier: "invite.submit") { submit() }.frame(maxWidth: 196)
+            CoffeePrimaryButton(title: draft.type == .coffee ? "提交咖啡邀请  →" : "提交互换邀请  →", isEnabled: draft.canSubmit || isReferencePresentation, accessibilityIdentifier: "invite.submit") { submit() }.frame(maxWidth: 196)
         }
-        .padding(.horizontal, 20).padding(.vertical, 10).background(CoffeeLinkTheme.background.opacity(0.98)).overlay(alignment: .top) { Divider().overlay(CoffeeLinkTheme.border) }
+        .padding(.horizontal, 20).padding(.vertical, 3).background(CoffeeLinkTheme.background.opacity(0.98)).overlay(alignment: .top) { Divider().overlay(CoffeeLinkTheme.border) }
     }
 
     private func submit() {

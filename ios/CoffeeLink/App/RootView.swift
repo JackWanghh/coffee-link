@@ -10,16 +10,20 @@ struct RootView: View {
     @State private var launchInvite = false
     @State private var launchCheckoutID: String?
     private let paymentResult: PaymentResult?
+    private let authReferenceState: Bool
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
-        let persistence: LocalPersistence = arguments.contains("-ui-testing") || arguments.contains("-reset-demo") ? .inMemory : .live
+        let usesIsolatedPersistence = arguments.contains("-ui-testing") || arguments.contains("-reset-demo")
+        let persistence: LocalPersistence = usesIsolatedPersistence ? .inMemory : .live
+        let credentialPersistence: CredentialPersistence = usesIsolatedPersistence ? .inMemory() : .live
         var snapshot = AppSnapshot.demo
         let requestedScreen = Self.launchValue(arguments: arguments, flag: "-present") ?? Self.launchValue(arguments: arguments, flag: "-screen")
         if arguments.contains("-logged-out") || requestedScreen == "invite" { snapshot.currentUser.isLoggedIn = false }
-        _store = State(initialValue: AppStore(snapshot: snapshot, persistence: persistence))
+        _store = State(initialValue: AppStore(snapshot: snapshot, persistence: persistence, credentialPersistence: credentialPersistence))
         let mode = Self.launchValue(arguments: arguments, flag: "-auth-mode")
         _authMode = State(initialValue: requestedScreen == "login" || arguments.contains("-present-login") ? .login : requestedScreen == "register" || arguments.contains("-present-register") ? .register : requestedScreen == "reset" || arguments.contains("-present-reset") ? .reset : AuthMode(rawValue: mode ?? ""))
+        authReferenceState = requestedScreen == "login" || requestedScreen == "register" || requestedScreen == "reset" || arguments.contains("-present-login") || arguments.contains("-present-register") || arguments.contains("-present-reset")
         _launchInvite = State(initialValue: requestedScreen == "invite" || arguments.contains("-present-invite"))
         _launchCheckoutID = State(initialValue: requestedScreen == "checkout" || arguments.contains("-present-checkout") || Self.launchValue(arguments: arguments, flag: "-payment-result") != nil ? "ord-out-accepted-pay-1" : nil)
         paymentResult = PaymentResult(rawValue: Self.launchValue(arguments: arguments, flag: "-payment-result") ?? "")
@@ -53,7 +57,7 @@ struct RootView: View {
                     .presentationDragIndicator(.visible)
             }
             if let authMode {
-                AuthFlowView(store: store, initialMode: authMode, onAuthenticated: resumePendingInvitation, onDismiss: { self.authMode = nil })
+                AuthFlowView(store: store, initialMode: authMode, referencePresentation: authReferenceState, onAuthenticated: resumePendingInvitation, onDismiss: { self.authMode = nil })
                     .transition(.opacity)
                     .zIndex(2)
             }

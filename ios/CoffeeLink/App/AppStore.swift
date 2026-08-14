@@ -24,16 +24,28 @@ final class AppStore {
     private(set) var snapshot: AppSnapshot
     var lastErrorMessage: String?
     private let persistence: LocalPersistence
-    private var mockPassword = "Pass123456"
+    private let credentialPersistence: CredentialPersistence
+    private var credentialPassword: String?
 
-    init(snapshot: AppSnapshot = .demo, persistence: LocalPersistence = .live) {
+    init(
+        snapshot: AppSnapshot = .demo,
+        persistence: LocalPersistence = .live,
+        credentialPersistence: CredentialPersistence = .live
+    ) {
         self.persistence = persistence
+        self.credentialPersistence = credentialPersistence
         do {
             self.snapshot = try persistence.load() ?? snapshot
             self.lastErrorMessage = nil
         } catch {
             self.snapshot = .demo
             self.lastErrorMessage = "演示数据已恢复"
+        }
+        do {
+            self.credentialPassword = try credentialPersistence.load() ?? "Pass123456"
+        } catch {
+            self.credentialPassword = nil
+            self.lastErrorMessage = "凭据读取失败，请稍后重试"
         }
     }
 
@@ -217,7 +229,11 @@ final class AppStore {
 
     func login(phone: String, password: String) -> Bool {
         let normalizedPhone = AuthValidator.normalizedPhone(phone)
-        guard AuthValidator.isMainlandPhone(normalizedPhone), password == mockPassword else {
+        guard let credentialPassword else {
+            lastErrorMessage = "凭据读取失败，请稍后重试"
+            return false
+        }
+        guard AuthValidator.isMainlandPhone(normalizedPhone), password == credentialPassword else {
             lastErrorMessage = "手机号或密码不正确"
             return false
         }
@@ -228,19 +244,35 @@ final class AppStore {
         return true
     }
 
-    func register(phone: String, password: String) {
+    @discardableResult
+    func register(phone: String, password: String) -> Bool {
+        do {
+            try credentialPersistence.save(password)
+        } catch {
+            lastErrorMessage = "凭据保存失败，请稍后重试"
+            return false
+        }
+        credentialPassword = password
         snapshot.currentUser.phone = AuthValidator.normalizedPhone(phone)
         snapshot.currentUser.isLoggedIn = false
-        mockPassword = password
         lastErrorMessage = nil
         save()
+        return lastErrorMessage == nil
     }
 
-    func resetPassword(_ password: String) {
-        mockPassword = password
+    @discardableResult
+    func resetPassword(_ password: String) -> Bool {
+        do {
+            try credentialPersistence.save(password)
+        } catch {
+            lastErrorMessage = "凭据保存失败，请稍后重试"
+            return false
+        }
+        credentialPassword = password
         snapshot.currentUser.isLoggedIn = false
         lastErrorMessage = nil
         save()
+        return lastErrorMessage == nil
     }
 
     func setLoggedIn(_ isLoggedIn: Bool) {
@@ -249,6 +281,13 @@ final class AppStore {
     }
 
     func resetDemoData() {
+        do {
+            try credentialPersistence.reset()
+        } catch {
+            lastErrorMessage = "凭据清除失败，请稍后重试"
+            return
+        }
+        credentialPassword = "Pass123456"
         snapshot = .demo
         lastErrorMessage = nil
         save()
