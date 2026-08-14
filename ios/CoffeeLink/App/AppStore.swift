@@ -81,7 +81,7 @@ final class AppStore {
             paymentMethod: nil,
             paymentDeadline: nil,
             status: .pendingResponse,
-            statusLabel: SessionStatus.pendingResponse.label,
+            statusLabel: "待对方回应",
             declineReason: nil,
             meetingType: "腾讯会议",
             meetingID: meetingID(from: sharer.meetingLink),
@@ -91,7 +91,7 @@ final class AppStore {
             review: nil,
             complaintReason: nil
         )
-        snapshot.sessions.append(session)
+        snapshot.sessions.insert(session, at: 0)
         save()
         return id
     }
@@ -141,7 +141,7 @@ final class AppStore {
             paymentMethod: nil,
             paymentDeadline: nil,
             status: .pendingResponse,
-            statusLabel: "待我回应 (互换)",
+            statusLabel: "待对方回应",
             declineReason: nil,
             meetingType: "腾讯会议",
             meetingID: meetingID(from: sharer.meetingLink),
@@ -151,7 +151,7 @@ final class AppStore {
             review: nil,
             complaintReason: nil
         )
-        snapshot.sessions.append(session)
+        snapshot.sessions.insert(session, at: 0)
         save()
         return id
     }
@@ -163,7 +163,7 @@ final class AppStore {
             session.confirmedSlot = confirmedSlot
             session.receiverQuestion = receiverQuestion
             session.status = session.type == .coffee ? .acceptedPendingPayment : .swapScheduled
-            session.statusLabel = session.status.label
+            session.statusLabel = session.type == .coffee ? "待付款" : "已排期"
         }
     }
 
@@ -171,7 +171,7 @@ final class AppStore {
         updateSession(id: id) { session in
             guard session.status == .pendingResponse || session.status == .needsNewTime else { return }
             session.status = .declined
-            session.statusLabel = session.status.label
+            session.statusLabel = "已婉拒"
             session.declineReason = reason
         }
     }
@@ -182,7 +182,7 @@ final class AppStore {
             session.paymentMethod = method
             session.paymentDeadline = nil
             session.status = .booked
-            session.statusLabel = session.status.label
+            session.statusLabel = "已预约"
         }
     }
 
@@ -190,7 +190,7 @@ final class AppStore {
         updateSession(id: id) { session in
             guard session.status != .completed, session.status != .cancelled else { return }
             session.status = .cancelled
-            session.statusLabel = session.status.label
+            session.statusLabel = "已取消"
         }
     }
 
@@ -205,7 +205,7 @@ final class AppStore {
         updateSession(id: id) { session in
             session.complaintReason = reason
             session.status = .inAfterSale
-            session.statusLabel = session.status.label
+            session.statusLabel = "售后中"
         }
     }
 

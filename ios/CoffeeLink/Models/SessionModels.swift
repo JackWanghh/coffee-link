@@ -17,22 +17,6 @@ enum SessionStatus: String, Codable, CaseIterable, Sendable {
     case inAfterSale
     case refunding
     case cancelled
-
-    var label: String {
-        switch self {
-        case .pendingResponse: "待我回应"
-        case .needsNewTime: "待重新确认时间"
-        case .acceptedPendingPayment: "已接受，待付款"
-        case .swapScheduled: "已排期 (主题互换)"
-        case .declined: "已婉拒"
-        case .expired: "已过期"
-        case .booked: "即将开始"
-        case .completed: "已完成"
-        case .inAfterSale: "售后处理中"
-        case .refunding: "退款中"
-        case .cancelled: "已取消"
-        }
-    }
 }
 
 enum PaymentMethod: String, Codable, CaseIterable, Sendable {
