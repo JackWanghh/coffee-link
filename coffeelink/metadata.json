@@ -1,0 +1,6 @@
+{
+  "name": "CoffeeLink",
+  "description": "线上职业 Coffee Chat 移动端原型及 Swift 6 + SwiftUI 架构系统",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

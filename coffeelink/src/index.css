@@ -1,0 +1,104 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --color-background: #0F0F12;
+    --color-surface: #141419;
+    --color-surface-card: #1A1A22;
+    --color-surface-container-low: #141419;
+    --color-surface-container: #1C1C26;
+    --color-surface-container-high: #242430;
+    --color-surface-container-highest: #2C2C3A;
+    --color-primary: #FF5E03;
+    --color-primary-gradient-end: #FF2D55;
+    --color-secondary: #FF2D55;
+    --color-secondary-container: #B5179E;
+    --color-text-primary: #FFFFFF;
+    --color-text-secondary: #A1A1AA;
+    --color-outline: #2E2E3C;
+    --color-outline-variant: #3E3E50;
+    --color-status-success: #10B981;
+    --color-status-warning: #FF5E03;
+    --color-status-error: #FF2D55;
+  }
+
+  body {
+    background-color: #0A0A0D;
+    color: #FFFFFF;
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  h1, h2, h3, .font-headline {
+    font-family: 'Hanken Grotesk', system-ui, -apple-system, sans-serif;
+  }
+}
+
+.font-hanken {
+  font-family: 'Hanken Grotesk', sans-serif;
+}
+
+.font-inter {
+  font-family: 'Inter', sans-serif;
+}
+
+.font-mono-code {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+/* Artistic Flair Ambient & Glow Shadows */
+.shadow-ambient-lvl1 {
+  box-shadow: 0px 4px 16px 0px rgba(0, 0, 0, 0.45), 0px 0px 1px 1px rgba(255, 255, 255, 0.05);
+}
+
+.shadow-ambient-lvl2 {
+  box-shadow: 0px 8px 24px 0px rgba(0, 0, 0, 0.55), 0px 0px 20px 0px rgba(255, 94, 3, 0.12);
+}
+
+.shadow-ambient-top {
+  box-shadow: 0px -4px 20px 0px rgba(0, 0, 0, 0.6);
+}
+
+.shadow-ambient-elevated {
+  box-shadow: 0px 12px 32px 0px rgba(0, 0, 0, 0.7), 0px 0px 24px 0px rgba(255, 45, 85, 0.18);
+}
+
+.shadow-glow-orange {
+  box-shadow: 0px 4px 20px 0px rgba(255, 94, 3, 0.35);
+}
+
+.shadow-glow-crimson {
+  box-shadow: 0px 4px 20px 0px rgba(255, 45, 85, 0.35);
+}
+
+/* Safe Area Paddings */
+.pt-safe {
+  padding-top: env(safe-area-inset-top, 44px);
+}
+
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 20px);
+}
+
+.h-safe-screen {
+  height: 100dvh;
+}
+
+/* Hide scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* iOS Active Touch Feedback */
+.ios-active {
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.15s ease;
+}
+.ios-active:active {
+  transform: scale(0.97);
+  opacity: 0.9;
+}
