@@ -26,10 +26,12 @@ struct RootView: View {
             .navigationDestination(for: AppRoute.self, destination: routeDestination)
         }
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            CoffeeLinkTabBar(
-                selectedTab: $selectedTab,
-                hasUnreadChats: store.snapshot.sessions.contains { $0.receiverID == store.snapshot.currentUser.id && $0.status == .pendingResponse }
-            )
+            if navigationPath.isEmpty {
+                CoffeeLinkTabBar(
+                    selectedTab: $selectedTab,
+                    hasUnreadChats: store.snapshot.sessions.contains { $0.receiverID == store.snapshot.currentUser.id && $0.status == .pendingResponse }
+                )
+            }
         }
         .sheet(item: $sheetRoute) { route in
             SheetPlaceholderView(route: route)
@@ -46,9 +48,7 @@ struct RootView: View {
     private var tabContent: some View {
         switch selectedTab {
         case .discover:
-            DiscoverTabView(sharers: store.snapshot.sharers) { sharer in
-                navigationPath.append(.sharerDetail(sharer.id))
-            }
+            DiscoverView(store: store, path: $navigationPath)
         case .chats:
             ChatsTabView(sessions: store.snapshot.sessions)
         case .mine:
@@ -62,7 +62,11 @@ struct RootView: View {
     private func routeDestination(_ route: AppRoute) -> some View {
         switch route {
         case .sharerDetail(let id):
-            RoutePlaceholderView(title: "分享者详情", subtitle: store.snapshot.sharers.first(where: { $0.id == id })?.name ?? "CoffeeLink")
+            if let sharer = store.snapshot.sharers.first(where: { $0.id == id }) {
+                SharerDetailView(sharer: sharer, path: $navigationPath)
+            } else {
+                RoutePlaceholderView(title: "分享者详情", subtitle: "CoffeeLink")
+            }
         case .createInvitation(_, let type, _):
             RoutePlaceholderView(title: type == .coffee ? "发起电子咖啡" : "发起主题互换", subtitle: "选择主题与可约时间")
         case .checkout:

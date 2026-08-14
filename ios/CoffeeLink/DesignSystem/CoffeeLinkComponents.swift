@@ -128,7 +128,7 @@ struct CoffeeTopBar: View {
             Spacer()
             if let trailingAction {
                 Button(action: trailingAction) {
-                    Image(systemName: "slider.horizontal.3")
+                    Image(systemName: "ellipsis")
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundStyle(CoffeeLinkTheme.secondaryText)
                         .frame(width: 44, height: 44)
