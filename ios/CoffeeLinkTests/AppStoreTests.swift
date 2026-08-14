@@ -3,6 +3,52 @@ import XCTest
 
 final class AppStoreTests: XCTestCase {
     @MainActor
+    func testFailedSnapshotSaveRollsBackLoginMutation() {
+        let initial = AppSnapshot.demo
+        let store = AppStore(snapshot: initial, persistence: failingSnapshotPersistence, credentialPersistence: .inMemory(initialPassword: "Original123"))
+
+        XCTAssertFalse(store.login(phone: "13800138000", password: "Original123"))
+        XCTAssertEqual(store.snapshot, initial)
+        XCTAssertEqual(store.lastErrorMessage, "本地数据保存失败")
+    }
+
+    @MainActor
+    func testFailedSnapshotSaveRollsBackRegistrationCredentialAndSnapshot() {
+        let initial = AppSnapshot.demo
+        let credentials = CredentialPersistence.inMemory(initialPassword: "Original123")
+        let store = AppStore(snapshot: initial, persistence: failingSnapshotPersistence, credentialPersistence: credentials)
+
+        XCTAssertFalse(store.register(phone: "13800138000", password: "Replacement123"))
+        XCTAssertEqual(store.snapshot, initial)
+        XCTAssertEqual(try credentials.load(), "Original123")
+    }
+
+    @MainActor
+    func testFailedSnapshotSaveRollsBackResetCredentialAndSnapshot() {
+        let initial = AppSnapshot.demo
+        let credentials = CredentialPersistence.inMemory(initialPassword: "Original123")
+        let store = AppStore(snapshot: initial, persistence: failingSnapshotPersistence, credentialPersistence: credentials)
+
+        XCTAssertFalse(store.resetPassword("Replacement123"))
+        XCTAssertEqual(store.snapshot, initial)
+        XCTAssertEqual(try credentials.load(), "Original123")
+    }
+
+    @MainActor
+    func testFailedSnapshotSaveRollsBackResetDemoData() {
+        var initial = AppSnapshot.demo
+        initial.currentUser.isLoggedIn = false
+        let credentials = CredentialPersistence.inMemory(initialPassword: "Original123")
+        let store = AppStore(snapshot: initial, persistence: failingSnapshotPersistence, credentialPersistence: credentials)
+
+        store.resetDemoData()
+
+        XCTAssertEqual(store.snapshot, initial)
+        XCTAssertEqual(try credentials.load(), "Original123")
+        XCTAssertEqual(store.lastErrorMessage, "本地数据保存失败")
+    }
+
+    @MainActor
     func testRegistrationCredentialSurvivesAppStoreRebuild() {
         let credentials = CredentialPersistence.inMemory()
         let firstStore = AppStore(snapshot: .demo, persistence: .inMemory, credentialPersistence: credentials)
@@ -88,3 +134,8 @@ final class AppStoreTests: XCTestCase {
         XCTAssertEqual(store.session(id: id)?.statusLabel, "已排期")
     }
 }
+
+private let failingSnapshotPersistence = LocalPersistence(
+    load: { nil },
+    save: { _ in throw CocoaError(.fileWriteUnknown) }
+)

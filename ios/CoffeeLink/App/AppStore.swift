@@ -237,15 +237,21 @@ final class AppStore {
             lastErrorMessage = "手机号或密码不正确"
             return false
         }
+        let previousSnapshot = snapshot
         snapshot.currentUser.phone = normalizedPhone
         snapshot.currentUser.isLoggedIn = true
         lastErrorMessage = nil
-        save()
+        guard save() else {
+            snapshot = previousSnapshot
+            return false
+        }
         return true
     }
 
     @discardableResult
     func register(phone: String, password: String) -> Bool {
+        let previousSnapshot = snapshot
+        let previousCredential = credentialPassword
         do {
             try credentialPersistence.save(password)
         } catch {
@@ -256,12 +262,18 @@ final class AppStore {
         snapshot.currentUser.phone = AuthValidator.normalizedPhone(phone)
         snapshot.currentUser.isLoggedIn = false
         lastErrorMessage = nil
-        save()
-        return lastErrorMessage == nil
+        guard save() else {
+            snapshot = previousSnapshot
+            rollbackCredential(to: previousCredential)
+            return false
+        }
+        return true
     }
 
     @discardableResult
     func resetPassword(_ password: String) -> Bool {
+        let previousSnapshot = snapshot
+        let previousCredential = credentialPassword
         do {
             try credentialPersistence.save(password)
         } catch {
@@ -271,8 +283,12 @@ final class AppStore {
         credentialPassword = password
         snapshot.currentUser.isLoggedIn = false
         lastErrorMessage = nil
-        save()
-        return lastErrorMessage == nil
+        guard save() else {
+            snapshot = previousSnapshot
+            rollbackCredential(to: previousCredential)
+            return false
+        }
+        return true
     }
 
     func setLoggedIn(_ isLoggedIn: Bool) {
@@ -281,6 +297,8 @@ final class AppStore {
     }
 
     func resetDemoData() {
+        let previousSnapshot = snapshot
+        let previousCredential = credentialPassword
         do {
             try credentialPersistence.reset()
         } catch {
@@ -290,7 +308,11 @@ final class AppStore {
         credentialPassword = "Pass123456"
         snapshot = .demo
         lastErrorMessage = nil
-        save()
+        guard save() else {
+            snapshot = previousSnapshot
+            rollbackCredential(to: previousCredential)
+            return
+        }
     }
 
     private func updateSession(id: String, mutate: (inout ChatSession) -> Void) {
@@ -322,12 +344,28 @@ final class AppStore {
         link?.lastPathComponent ?? "832 910 293"
     }
 
-    private func save() {
+    @discardableResult
+    private func save() -> Bool {
         do {
             try persistence.save(snapshot)
             lastErrorMessage = nil
+            return true
         } catch {
             lastErrorMessage = "本地数据保存失败"
+            return false
+        }
+    }
+
+    private func rollbackCredential(to previousCredential: String?) {
+        do {
+            if let previousCredential {
+                try credentialPersistence.save(previousCredential)
+            } else {
+                try credentialPersistence.reset()
+            }
+            credentialPassword = previousCredential
+        } catch {
+            lastErrorMessage = "本地数据保存失败；凭据回滚失败"
         }
     }
 }
