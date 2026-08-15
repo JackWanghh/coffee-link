@@ -13,6 +13,7 @@
 		4BB70A2B3E41BF28C5E0337A /* DiscoverFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE0DFDEE41DAEEBCE3E7DC /* DiscoverFilterTests.swift */; };
 		5A2882FD0CF928D78E6A3849 /* CoreFlowsUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 40AB52B40E3EEE347286BE45 /* CoreFlowsUITests.swift */; };
 		6A371165D93B2800553F7883 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = DA4553E90A0B414751227F2E /* ProfileView.swift */; };
+		6A42773FC788270A2785F946 /* VisualBaselineUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76F1C9E248ED18996968CEEF /* VisualBaselineUITests.swift */; };
 		6D12E02CD1981FE9DA27CA00 /* CoffeeLinkApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5298FB2A8D39A08F11926E4B /* CoffeeLinkApp.swift */; };
 		6F4ED27151B4A4187FAD9A37 /* AppStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 673F1A5EA31665F1E0AC9C44 /* AppStore.swift */; };
 		77FF6FBAE2B47D73993A5C30 /* LocalPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 24BE0101B534E78C50827C79 /* LocalPersistence.swift */; };
@@ -77,6 +78,7 @@
 		673F1A5EA31665F1E0AC9C44 /* AppStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppStore.swift; sourceTree = "<group>"; };
 		6F5DAF36AC582CFC4BDD892D /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		74C3D1F1BFF19CD31DA43B34 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+		76F1C9E248ED18996968CEEF /* VisualBaselineUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisualBaselineUITests.swift; sourceTree = "<group>"; };
 		76FC2679A13BC8CCF3E61C93 /* CoffeeLinkTabBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoffeeLinkTabBar.swift; sourceTree = "<group>"; };
 		7B373E8178E1728F4075DBED /* CredentialPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CredentialPersistence.swift; sourceTree = "<group>"; };
 		81F9F122FBD3FBAE6D9CD336 /* CoffeeLinkComponents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoffeeLinkComponents.swift; sourceTree = "<group>"; };
@@ -280,6 +282,7 @@
 			children = (
 				6F5DAF36AC582CFC4BDD892D /* .gitkeep */,
 				40AB52B40E3EEE347286BE45 /* CoreFlowsUITests.swift */,
+				76F1C9E248ED18996968CEEF /* VisualBaselineUITests.swift */,
 			);
 			path = CoffeeLinkUITests;
 			sourceTree = "<group>";
@@ -393,6 +396,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				5A2882FD0CF928D78E6A3849 /* CoreFlowsUITests.swift in Sources */,
+				6A42773FC788270A2785F946 /* VisualBaselineUITests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

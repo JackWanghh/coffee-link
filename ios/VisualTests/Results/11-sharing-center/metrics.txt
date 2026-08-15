@@ -1,0 +1,3 @@
+different_pixels=134329
+total_pixels=334836
+difference_ratio=0.401178487379

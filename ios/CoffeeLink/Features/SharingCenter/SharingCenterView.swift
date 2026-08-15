@@ -20,11 +20,12 @@ struct SharingCenterView: View {
                 VStack(spacing: 16) {
                     sharingStatus
                     overview
-                    pendingAndSettlement
                     signatureDrink
                     topicSwap
                     themes
                     fulfillment
+                    readinessStatus
+                    pendingAndSettlement
                     previewButton
                 }
                 .padding(.horizontal, 20)
@@ -104,18 +105,6 @@ struct SharingCenterView: View {
                 .accessibilityValue(user.isSharingOpen ? "已开启" : "已关闭")
                 .accessibilityAddTraits(user.isSharingOpen ? .isSelected : [])
             }
-            HStack(spacing: 7) {
-                Text("开放准备 \(user.sharingReadinessItems.filter(\.isComplete).count)/\(user.sharingReadinessItems.count)")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(user.isSharingReady ? CoffeeLinkTheme.success : CoffeeLinkTheme.accent)
-                ForEach(Array(user.sharingReadinessItems.enumerated()), id: \.offset) { _, item in
-                    Image(systemName: item.isComplete ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 11))
-                        .foregroundStyle(item.isComplete ? CoffeeLinkTheme.success : CoffeeLinkTheme.secondaryText)
-                        .accessibilityLabel("\(item.title)：\(item.isComplete ? "已完成" : "待完成")")
-                }
-                Spacer()
-            }
             if let localError {
                 Label(localError, systemImage: "exclamationmark.circle.fill")
                     .font(.system(size: 11))
@@ -124,8 +113,28 @@ struct SharingCenterView: View {
             }
         }
         .padding(16)
+        .frame(minHeight: 93)
         .background(CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
+    }
+
+    private var readinessStatus: some View {
+        HStack(spacing: 7) {
+            Text("开放准备 \(user.sharingReadinessItems.filter(\.isComplete).count)/\(user.sharingReadinessItems.count)")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(user.isSharingReady ? CoffeeLinkTheme.success : CoffeeLinkTheme.accent)
+            ForEach(Array(user.sharingReadinessItems.enumerated()), id: \.offset) { _, item in
+                Image(systemName: item.isComplete ? "checkmark.circle.fill" : "circle")
+                    .font(.system(size: 11))
+                    .foregroundStyle(item.isComplete ? CoffeeLinkTheme.success : CoffeeLinkTheme.secondaryText)
+                    .accessibilityLabel("\(item.title)：\(item.isComplete ? "已完成" : "待完成")")
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 16)
+        .frame(minHeight: 44)
+        .background(CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
     }
 
     private var overview: some View {
@@ -134,6 +143,7 @@ struct SharingCenterView: View {
             metricCard(icon: "arrow.triangle.2.circlepath", label: "完成对谈与互换", value: "\(user.completedSessionsCount) 次", note: "按时到场率 \(user.onTimeRate)", accent: .blue)
         }
         .padding(16)
+        .frame(minHeight: 130)
         .background(CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
         .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
     }
@@ -275,6 +285,7 @@ struct SharingCenterView: View {
     private func sectionCard<Content: View>(@ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 12, content: content)
             .padding(16)
+            .frame(minHeight: 132)
             .background(CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 16))
             .overlay(RoundedRectangle(cornerRadius: 16).stroke(CoffeeLinkTheme.border, lineWidth: 1))
     }
@@ -293,6 +304,7 @@ struct SharingCenterView: View {
             .buttonStyle(.plain)
             .accessibilityIdentifier(actionTitle)
         }
+        .frame(height: 24)
     }
 
     private func configRow(title: String, subtitle: String, icon: String, route: SheetRoute) -> some View {

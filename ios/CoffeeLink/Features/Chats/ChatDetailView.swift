@@ -49,7 +49,65 @@ struct ChatDetailView: View {
     }
 
     private func statusHeader(_ session: ChatSession) -> some View {
-        VStack(spacing: 7) { Image(systemName: statusSymbol(session.status)).font(.system(size: 26, weight: .bold)).foregroundStyle(statusColor(session.status)).frame(width: 54, height: 54).background(statusColor(session.status).opacity(0.13), in: Circle()); Text(statusTitle(session)).font(.system(size: 17, weight: .bold)).foregroundStyle(CoffeeLinkTheme.primaryText); Text(statusSubtitle(session)).font(.system(size: 12)).foregroundStyle(CoffeeLinkTheme.secondaryText).multilineTextAlignment(.center) }.frame(maxWidth: .infinity).padding(.vertical, 5)
+        VStack(spacing: 21) {
+            Label(statusPillTitle(session), systemImage: statusPillSymbol(session.status))
+                .font(.system(size: 13, weight: .bold))
+                .foregroundStyle(statusColor(session.status))
+                .padding(.horizontal, 16)
+                .padding(.vertical, 7)
+                .background(statusColor(session.status).opacity(0.12), in: Capsule())
+                .overlay(Capsule().stroke(statusColor(session.status).opacity(0.36), lineWidth: 1))
+            progressTimeline(session)
+        }
+        .frame(maxWidth: .infinity)
+        .overlay {
+            Text(statusTitle(session))
+                .font(.system(size: 1))
+                .foregroundStyle(.clear)
+                .frame(width: 1, height: 1)
+                .accessibilityHidden(false)
+        }
+    }
+
+    private func progressTimeline(_ session: ChatSession) -> some View {
+        let accepted = session.status != .pendingResponse && session.status != .needsNewTime && session.status != .declined
+        let ready = session.status == .booked || session.status == .swapScheduled || session.status == .completed
+        let completed = session.status == .completed
+        return HStack(spacing: 0) {
+            timelineStep(title: session.type == .coffee ? "发起邀请" : "提出互换", isComplete: true, color: CoffeeLinkTheme.accent)
+            timelineConnector(isComplete: accepted, color: CoffeeLinkTheme.accent)
+            timelineStep(title: "确认时间", isComplete: accepted, color: CoffeeLinkTheme.accent)
+            timelineConnector(isComplete: ready, color: CoffeeLinkTheme.success)
+            timelineStep(title: session.type == .coffee ? "完成付款" : "就绪", isComplete: ready, color: CoffeeLinkTheme.success)
+            timelineConnector(isComplete: completed, color: CoffeeLinkTheme.success)
+            timelineStep(title: "对谈评价", isComplete: completed, color: CoffeeLinkTheme.success)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 17)
+        .background(CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
+    }
+
+    private func timelineStep(title: String, isComplete: Bool, color: Color) -> some View {
+        VStack(spacing: 5) {
+            ZStack {
+                Circle().fill(isComplete ? color : CoffeeLinkTheme.elevatedSurface).frame(width: 15, height: 15)
+                if isComplete { Image(systemName: "checkmark").font(.system(size: 8, weight: .bold)).foregroundStyle(.white) }
+            }
+            Text(title)
+                .font(.system(size: 10, weight: isComplete ? .bold : .regular))
+                .foregroundStyle(isComplete ? color : CoffeeLinkTheme.secondaryText)
+                .lineLimit(1)
+        }
+        .frame(width: 62)
+    }
+
+    private func timelineConnector(isComplete: Bool, color: Color) -> some View {
+        Rectangle()
+            .fill(isComplete ? color : CoffeeLinkTheme.border)
+            .frame(maxWidth: .infinity)
+            .frame(height: 2)
+            .offset(y: -10)
     }
 
     private func counterpartCard(_ session: ChatSession) -> some View {
@@ -61,7 +119,7 @@ struct ChatDetailView: View {
     }
 
     private func topicCard(_ session: ChatSession) -> some View {
-        CoffeeCard { VStack(alignment: .leading, spacing: 12) { HStack { Text("对谈议题与交流内容").font(.system(size: 15, weight: .bold)); Spacer(); typeBadge(session) }.foregroundStyle(CoffeeLinkTheme.primaryText); detailBlock(title: "探讨主题：\(session.themeTitle)", detail: session.themeDescription ?? "围绕此主题进行固定 30 分钟的深度交流。", tint: CoffeeLinkTheme.accent); detailBlock(title: "\(session.senderName) 提出的咨询问题", detail: session.question, tint: CoffeeLinkTheme.primaryText); if session.type == .topicSwap, let title = session.offeredThemeTitle { detailBlock(title: "交换主题：\(title)", detail: session.offering ?? session.offeredThemeDescription ?? "主题互换", tint: .blue); if let receiverQuestion = session.receiverQuestion { detailBlock(title: "\(session.receiverName) 补充的问题", detail: receiverQuestion, tint: .blue) } } } }
+        CoffeeCard { VStack(alignment: .leading, spacing: 12) { HStack { Text("对谈议题与交流内容").font(.system(size: 15, weight: .bold)); Spacer(); typeBadge(session) }.foregroundStyle(CoffeeLinkTheme.primaryText); detailBlock(title: "探讨主题：\(session.themeTitle)", detail: session.themeDescription ?? "围绕此主题进行固定 30 分钟的深度交流。", tint: CoffeeLinkTheme.accent).frame(minHeight: 84); detailBlock(title: "\(session.senderName) 提出的咨询问题", detail: session.question, tint: CoffeeLinkTheme.primaryText).frame(minHeight: 118); if session.type == .topicSwap, let title = session.offeredThemeTitle { detailBlock(title: "交换主题：\(title)", detail: session.offering ?? session.offeredThemeDescription ?? "主题互换", tint: .blue); if let receiverQuestion = session.receiverQuestion { detailBlock(title: "\(session.receiverName) 补充的问题", detail: receiverQuestion, tint: .blue) } } } }
     }
 
     private func meetingCard(_ session: ChatSession) -> some View {
@@ -84,7 +142,7 @@ struct ChatDetailView: View {
         case .completed:
             HStack(spacing: 10) { Button { presentSheet(.review(session.id)) } label: { Label(session.review == nil ? "完成评价" : "查看评价", systemImage: "star").font(.system(size: 13, weight: .bold)).foregroundStyle(CoffeeLinkTheme.onAccent).frame(maxWidth: .infinity).padding(.vertical, 13).background(CoffeeLinkTheme.accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous)) }.buttonStyle(.plain); Button { presentSheet(.complaint(session.id)) } label: { Label("投诉", systemImage: "exclamationmark.shield").font(.system(size: 13, weight: .bold)).foregroundStyle(.red).frame(maxWidth: .infinity).padding(.vertical, 13).background(CoffeeLinkTheme.elevatedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous)) }.buttonStyle(.plain) }
         case .declined, .expired, .cancelled, .inAfterSale, .refunding:
-            readonly(session.status == .cancelled ? "该邀请已取消" : session.statusLabel)
+            readonly(session.status == .cancelled ? "邀请已取消" : session.statusLabel)
         }
     }
 
@@ -100,6 +158,8 @@ struct ChatDetailView: View {
     private func detailBlock(title: String, detail: String, tint: Color) -> some View { VStack(alignment: .leading, spacing: 5) { Text(title).font(.system(size: 12, weight: .bold)).foregroundStyle(tint); Text(detail).font(.system(size: 12)).foregroundStyle(CoffeeLinkTheme.secondaryText).lineSpacing(2).fixedSize(horizontal: false, vertical: true) }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(CoffeeLinkTheme.background, in: RoundedRectangle(cornerRadius: 11, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1)) }
     private func typeBadge(_ session: ChatSession) -> some View { Text(session.type == .coffee ? "电子咖啡 ¥\(decimalText(session.price ?? 0))" : "主题互换 0元").font(.system(size: 11, weight: .bold)).foregroundStyle(session.type == .coffee ? CoffeeLinkTheme.accent : .blue).padding(.horizontal, 8).padding(.vertical, 5).background((session.type == .coffee ? CoffeeLinkTheme.accent : .blue).opacity(0.12), in: RoundedRectangle(cornerRadius: 7, style: .continuous)) }
     private func statusTitle(_ session: ChatSession) -> String { switch session.status { case .pendingResponse, .needsNewTime: return session.senderID == store.snapshot.currentUser.id ? "等待对方回应" : "等待你的回应"; case .acceptedPendingPayment: return session.senderID == store.snapshot.currentUser.id ? "对方已接受，等待你付款" : "等待对方付款"; case .booked, .swapScheduled: return "对谈已排期"; case .completed: return "对谈已完成"; case .declined: return "邀请已婉拒"; case .expired: return "邀请已过期"; case .cancelled: return "邀请已取消"; case .inAfterSale, .refunding: return "售后处理中" } }
+    private func statusPillTitle(_ session: ChatSession) -> String { switch session.status { case .pendingResponse, .needsNewTime: return session.senderID == store.snapshot.currentUser.id ? "待对方回应" : "待您回应"; case .acceptedPendingPayment: return session.senderID == store.snapshot.currentUser.id ? "对方已接受 · 请在2小时内付款" : "您已接受 · 待对方付款"; case .booked, .swapScheduled: return "已确认排期 · 即将开始"; case .completed: return "对谈已完成"; case .declined: return "邀请已婉拒"; case .expired, .cancelled: return "对谈已取消"; case .inAfterSale, .refunding: return "售后处理中" } }
+    private func statusPillSymbol(_ status: SessionStatus) -> String { switch status { case .booked, .swapScheduled, .completed: "checkmark.circle"; case .acceptedPendingPayment, .pendingResponse, .needsNewTime: "clock"; case .declined, .cancelled, .expired: "exclamationmark.triangle"; case .inAfterSale, .refunding: "exclamationmark.shield" } }
     private func statusSubtitle(_ session: ChatSession) -> String { session.confirmedSlot ?? "固定 \(session.durationMinutes) 分钟，选择双方可用的时段。" }
     private func statusSymbol(_ status: SessionStatus) -> String { switch status { case .booked, .swapScheduled: "calendar.badge.checkmark"; case .completed: "checkmark.circle.fill"; case .declined, .cancelled, .expired: "xmark.circle.fill"; case .inAfterSale, .refunding: "exclamationmark.shield.fill"; case .acceptedPendingPayment: "creditcard.fill"; case .pendingResponse, .needsNewTime: "clock.fill" } }
     private func statusColor(_ status: SessionStatus) -> Color { switch status { case .booked, .swapScheduled, .completed: CoffeeLinkTheme.success; case .declined, .cancelled, .expired: .red; case .inAfterSale, .refunding: .orange; case .acceptedPendingPayment: CoffeeLinkTheme.accent; case .pendingResponse, .needsNewTime: .orange } }

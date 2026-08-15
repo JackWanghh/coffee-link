@@ -40,9 +40,15 @@ struct CreateInvitationView: View {
         self.onDismiss = onDismiss
         let arguments = ProcessInfo.processInfo.arguments
         let prefilled = arguments.contains("-prefill-invitation")
-        isReferencePresentation = arguments.contains("-present-invite")
+        let visualScreen = Self.launchValue(arguments: arguments, flag: "-visual-screen")
+        isReferencePresentation = arguments.contains("-present-invite") || visualScreen == "invitation"
         let selectedFirstSlot = prefilled || isReferencePresentation
         _draft = State(initialValue: InvitationDraft(sharerID: sharer.id, type: type, selectedThemeID: themeID ?? sharer.themes.first?.id ?? "", selectedSlotIDs: selectedFirstSlot ? sharer.availableDays.lazy.flatMap(\.slots).prefix(1).map(\.id) : [], question: prefilled ? "如何规划产品路线图并平衡技术债务？" : "", offeredThemeID: store.snapshot.currentUser.myThemes.first?.id, offering: prefilled ? "我可以分享 AI 产品从发现到上线的复盘。" : ""))
+    }
+
+    private static func launchValue(arguments: [String], flag: String) -> String? {
+        guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
+        return arguments[index + 1]
     }
 
     var body: some View {

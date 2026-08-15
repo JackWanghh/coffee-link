@@ -36,12 +36,11 @@ struct BookingCheckoutView: View {
                 navigationBar
                 ScrollView(showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 16) {
-                        orderHeader(session)
-                        coffeeCard(session)
-                        participantsCard(session)
-                        timeCard(session)
-                        refundCard
+                        acceptanceNotice
+                        conversationSummary(session)
+                        feeBreakdown(session)
                         paymentMethods
+                        refundGuarantee
                         if let result { paymentResultCard(result) }
                         if let paymentError { Text(paymentError).font(.system(size: 12, weight: .medium)).foregroundStyle(.red).padding(12).frame(maxWidth: .infinity, alignment: .leading).background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous)) }
                     }
@@ -59,51 +58,131 @@ struct BookingCheckoutView: View {
 
     private var navigationBar: some View {
         ZStack {
-            Text("确认邀请付款").font(.system(size: 19, weight: .bold)).foregroundStyle(CoffeeLinkTheme.primaryText)
+            Text("请喝咖啡并确认预约").font(.system(size: 18, weight: .bold)).foregroundStyle(CoffeeLinkTheme.primaryText)
             HStack { Button(action: onDismiss) { Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold)).foregroundStyle(CoffeeLinkTheme.primaryText).frame(width: 44, height: 44) }.buttonStyle(.plain).accessibilityIdentifier("payment.back"); Spacer() }
         }.frame(height: 56).overlay(alignment: .bottom) { Divider().overlay(CoffeeLinkTheme.border) }
     }
 
-    private func orderHeader(_ session: ChatSession) -> some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text("对方已接受你的电子咖啡邀请").font(.system(size: 19, weight: .bold)).foregroundStyle(CoffeeLinkTheme.primaryText)
-            Text("请在支付时限内完成付款，确认后将为你保留 30 分钟对谈时段。").font(.system(size: 13)).foregroundStyle(CoffeeLinkTheme.secondaryText).lineSpacing(2)
-            if let deadline = session.paymentDeadline { CoffeeBadge(deadline, tone: .accent) }
-        }
-    }
-
-    private func coffeeCard(_ session: ChatSession) -> some View {
-        HStack(spacing: 13) {
-            Image(systemName: "cup.and.saucer.fill").font(.system(size: 25)).foregroundStyle(CoffeeLinkTheme.primaryText).frame(width: 52, height: 52).background(CoffeeLinkTheme.accent.opacity(0.16), in: RoundedRectangle(cornerRadius: 13, style: .continuous))
-            VStack(alignment: .leading, spacing: 4) { Text(session.coffeeDrink?.name ?? "签名咖啡").font(.system(size: 16, weight: .bold)); Text(session.coffeeDrink?.description ?? "对谈确认后由平台代为送达").font(.system(size: 12)).foregroundStyle(CoffeeLinkTheme.secondaryText).lineLimit(2) }.foregroundStyle(CoffeeLinkTheme.primaryText)
-            Spacer()
-            Text("¥\(decimalText(session.price ?? 0))").font(.system(size: 22, weight: .bold)).foregroundStyle(CoffeeLinkTheme.accent)
-        }.padding(16).background(CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 16, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
-    }
-
-    private func participantsCard(_ session: ChatSession) -> some View {
-        CoffeeCard {
-            VStack(alignment: .leading, spacing: 12) {
-                Text("本次对谈").font(.system(size: 13, weight: .bold)).foregroundStyle(CoffeeLinkTheme.secondaryText)
-                HStack { CoffeeAvatar(name: session.senderName, imageURL: session.senderAvatarURL, size: 38); Text(session.senderName).font(.system(size: 14, weight: .semibold)); Spacer(); Image(systemName: "arrow.left.and.right").foregroundStyle(CoffeeLinkTheme.accent); Spacer(); Text(session.receiverName).font(.system(size: 14, weight: .semibold)); CoffeeAvatar(name: session.receiverName, imageURL: session.receiverAvatarURL, size: 38) }.foregroundStyle(CoffeeLinkTheme.primaryText)
-                Divider().overlay(CoffeeLinkTheme.border)
-                Text(session.themeTitle).font(.system(size: 15, weight: .bold)).foregroundStyle(CoffeeLinkTheme.primaryText)
-                Text("固定 30 分钟 · " + (session.confirmedSlot ?? session.candidateSlots.first ?? "待确认时段")).font(.system(size: 12)).foregroundStyle(CoffeeLinkTheme.secondaryText)
+    private var acceptanceNotice: some View {
+        HStack(spacing: 11) {
+            Image(systemName: "cup.and.saucer.fill")
+                .font(.system(size: 17))
+                .foregroundStyle(CoffeeLinkTheme.accent)
+                .frame(width: 22)
+            VStack(alignment: .leading, spacing: 4) {
+                Text("分享者已接受您的邀请，请在 2 小时内完成支付")
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(CoffeeLinkTheme.primaryText)
+                Text("支付成功后立即生成正式对谈订单并确认时段，超时未付将自动释放该时段。")
+                    .font(.system(size: 11))
+                    .foregroundStyle(CoffeeLinkTheme.secondaryText)
+                    .lineSpacing(2)
             }
         }
+        .padding(14)
+        .frame(minHeight: 84)
+        .background(CoffeeLinkTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(CoffeeLinkTheme.accent.opacity(0.5), lineWidth: 1))
     }
 
-    private func timeCard(_ session: ChatSession) -> some View {
-        HStack(spacing: 11) { Image(systemName: "clock.fill").foregroundStyle(CoffeeLinkTheme.accent); VStack(alignment: .leading, spacing: 3) { Text("已确认的对谈时段").font(.system(size: 12, weight: .semibold)); Text(session.confirmedSlot ?? session.candidateSlots.first ?? "30 分钟").font(.system(size: 14, weight: .bold)) }.foregroundStyle(CoffeeLinkTheme.primaryText); Spacer(); Text("30 min").font(.system(size: 12, weight: .bold)).foregroundStyle(CoffeeLinkTheme.accent) }.padding(14).background(CoffeeLinkTheme.elevatedSurface, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+    private func conversationSummary(_ session: ChatSession) -> some View {
+        CoffeeCard {
+            VStack(alignment: .leading, spacing: 14) {
+                Text("对谈与饮品信息")
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundStyle(CoffeeLinkTheme.primaryText)
+                HStack(alignment: .top, spacing: 12) {
+                    CoffeeAvatar(name: session.receiverName, imageURL: session.receiverAvatarURL, size: 48)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(session.themeTitle)
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(CoffeeLinkTheme.primaryText)
+                            .lineLimit(1)
+                        Text("分享者：\(session.receiverName) (\(session.receiverTitle))")
+                            .font(.system(size: 12))
+                            .foregroundStyle(CoffeeLinkTheme.secondaryText)
+                            .lineLimit(1)
+                    }
+                }
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("您提交的咨询问题：")
+                        .font(.system(size: 11, weight: .bold))
+                        .foregroundStyle(CoffeeLinkTheme.accent)
+                    Text(session.question)
+                        .font(.system(size: 12))
+                        .foregroundStyle(CoffeeLinkTheme.secondaryText)
+                        .lineSpacing(2)
+                        .lineLimit(2)
+                }
+                .padding(12)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(CoffeeLinkTheme.elevatedSurface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
+                Divider().overlay(CoffeeLinkTheme.border)
+                VStack(spacing: 10) {
+                    summaryRow("已确认时段", value: session.confirmedSlot ?? session.candidateSlots.first ?? "10月24日 14:00 - 14:30", symbol: "calendar")
+                    summaryRow("对谈时长", value: "30 分钟 (1对1)", symbol: "clock")
+                    summaryRow("会议方式", value: "腾讯会议 (付款后展示链接)", symbol: "video")
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 284, alignment: .topLeading)
+        }
     }
 
-    private var refundCard: some View {
-        HStack(alignment: .top, spacing: 10) { Image(systemName: "shield.checkered").foregroundStyle(CoffeeLinkTheme.success); VStack(alignment: .leading, spacing: 4) { Text("退款保障").font(.system(size: 13, weight: .bold)); Text("若对方未按约完成对谈，可在订单详情申请售后与退款。平台将在核实后原路退回。 ").font(.system(size: 12)).foregroundStyle(CoffeeLinkTheme.secondaryText).lineSpacing(2) }.foregroundStyle(CoffeeLinkTheme.primaryText) }.padding(14).background(CoffeeLinkTheme.success.opacity(0.08), in: RoundedRectangle(cornerRadius: 14, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(CoffeeLinkTheme.success.opacity(0.25), lineWidth: 1))
+    private func summaryRow(_ title: String, value: String, symbol: String) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: symbol).font(.system(size: 13)).foregroundStyle(CoffeeLinkTheme.accent).frame(width: 16)
+            Text(title).font(.system(size: 12)).foregroundStyle(CoffeeLinkTheme.secondaryText)
+            Spacer(minLength: 8)
+            Text(value).font(.system(size: 12, weight: .semibold)).foregroundStyle(CoffeeLinkTheme.primaryText).lineLimit(1)
+        }
+    }
+
+    private func feeBreakdown(_ session: ChatSession) -> some View {
+        CoffeeCard {
+            VStack(alignment: .leading, spacing: 11) {
+                Text("费用明细").font(.system(size: 15, weight: .bold)).foregroundStyle(CoffeeLinkTheme.primaryText)
+                HStack {
+                    Text("\(session.coffeeDrink?.icon ?? "☕")  签名饮品：\(session.coffeeDrink?.name ?? "电子咖啡")")
+                        .font(.system(size: 13))
+                        .foregroundStyle(CoffeeLinkTheme.secondaryText)
+                    Spacer()
+                    Text("¥\(decimalText(session.price ?? 0)).00").font(.system(size: 13, weight: .semibold, design: .monospaced)).foregroundStyle(CoffeeLinkTheme.primaryText)
+                }
+                HStack {
+                    Text("平台服务费").font(.system(size: 12)).foregroundStyle(CoffeeLinkTheme.secondaryText.opacity(0.72))
+                    Spacer()
+                    Text("免收发起人服务费").font(.system(size: 12, weight: .medium)).foregroundStyle(CoffeeLinkTheme.success)
+                }
+                Divider().overlay(CoffeeLinkTheme.border)
+                HStack {
+                    Text("实付金额").font(.system(size: 14, weight: .bold)).foregroundStyle(CoffeeLinkTheme.primaryText)
+                    Spacer()
+                    Text("¥\(decimalText(session.price ?? 0)).00").font(.system(size: 20, weight: .bold)).foregroundStyle(CoffeeLinkTheme.accent)
+                }
+            }
+            .frame(maxWidth: .infinity, minHeight: 140, alignment: .topLeading)
+        }
+    }
+
+    private var refundGuarantee: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "shield.checkered").font(.system(size: 16)).foregroundStyle(CoffeeLinkTheme.success)
+            Text("履约与退款保障：")
+                .font(.system(size: 11, weight: .bold))
+                .foregroundStyle(CoffeeLinkTheme.success)
+            + Text("对谈开始前取消全额原路退款；若分享者未到场或会议失效全额退款并记异常；完成后24小时内支持售后反馈。")
+                .font(.system(size: 11))
+                .foregroundStyle(CoffeeLinkTheme.secondaryText)
+        }
+        .padding(14)
+        .background(CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
     }
 
     private var paymentMethods: some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text("选择支付方式").font(.system(size: 15, weight: .bold)).foregroundStyle(CoffeeLinkTheme.primaryText)
+            Text("支付方式").font(.system(size: 15, weight: .bold)).foregroundStyle(CoffeeLinkTheme.primaryText)
             ForEach(PaymentMethod.allCases, id: \.self) { item in Button { method = item } label: { HStack { Image(systemName: item == .wechat ? "message.fill" : "yensign.circle.fill").foregroundStyle(item == .wechat ? CoffeeLinkTheme.success : .blue).frame(width: 30); Text(item.label).font(.system(size: 14, weight: .semibold)); Spacer(); Image(systemName: method == item ? "checkmark.circle.fill" : "circle").foregroundStyle(method == item ? CoffeeLinkTheme.accent : CoffeeLinkTheme.secondaryText) }.foregroundStyle(CoffeeLinkTheme.primaryText).padding(15).background(CoffeeLinkTheme.surface, in: RoundedRectangle(cornerRadius: 14, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 14, style: .continuous).stroke(method == item ? CoffeeLinkTheme.accent : CoffeeLinkTheme.border, lineWidth: 1)) }.buttonStyle(.plain).accessibilityIdentifier("payment.\(item.rawValue)") }
         }
     }
@@ -114,7 +193,7 @@ struct BookingCheckoutView: View {
     }
 
     private func actionBar(_ session: ChatSession) -> some View {
-        HStack { VStack(alignment: .leading, spacing: 2) { Text("应付金额").font(.system(size: 11)).foregroundStyle(CoffeeLinkTheme.secondaryText); Text("¥\(decimalText(session.price ?? 0))").font(.system(size: 21, weight: .bold)).foregroundStyle(CoffeeLinkTheme.accent) }; Spacer(); CoffeePrimaryButton(title: result == .success ? "查看对谈详情" : result == .failure ? "重新支付" : "确认支付", accessibilityIdentifier: result == .success ? "payment.view-session" : "payment.confirm") { if result == .success { onCompleted(session.id) } else { pay(session) } }.frame(width: 205) }.padding(.horizontal, 20).padding(.vertical, 10).background(CoffeeLinkTheme.background.opacity(0.98)).overlay(alignment: .top) { Divider().overlay(CoffeeLinkTheme.border) }
+        HStack { VStack(alignment: .leading, spacing: 2) { Text("实付总额").font(.system(size: 11)).foregroundStyle(CoffeeLinkTheme.secondaryText); Text("¥\(decimalText(session.price ?? 0)).00").font(.system(size: 21, weight: .bold)).foregroundStyle(CoffeeLinkTheme.accent) }; Spacer(); CoffeePrimaryButton(title: result == .success ? "查看对谈详情" : result == .failure ? "重新支付" : "立即支付", accessibilityIdentifier: result == .success ? "payment.view-session" : "payment.confirm") { if result == .success { onCompleted(session.id) } else { pay(session) } }.frame(width: 200) }.padding(.horizontal, 16).padding(.vertical, 10).background(CoffeeLinkTheme.background.opacity(0.98)).overlay(alignment: .top) { Divider().overlay(CoffeeLinkTheme.border) }
     }
 
     private func pay(_ session: ChatSession) {

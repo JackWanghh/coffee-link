@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct RootView: View {
     @State private var store: AppStore
@@ -17,10 +18,18 @@ struct RootView: View {
     private let authReferenceState: Bool
     private let persistenceMode: String
     private let credentialMode: String
+    private let visualScreen: String?
+    private let visualCaptureToken: String?
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
         let environment = ProcessInfo.processInfo.environment
+        let requestedVisualScreen = Self.launchValue(arguments: arguments, flag: "-visual-screen")
+        visualScreen = requestedVisualScreen
+        visualCaptureToken = Self.launchValue(arguments: arguments, flag: "-visual-capture-token")
+        if requestedVisualScreen != nil {
+            UIView.setAnimationsEnabled(false)
+        }
         let usesPersistentUITesting = arguments.contains("-persistent-ui-testing") || environment["COFFEELINK_PERSISTENT_UI_TESTING"] == "1"
         let resetsPersistentDemo = arguments.contains("-reset-demo") || environment["COFFEELINK_RESET_PERSISTENT_DEMO"] == "1"
         if usesPersistentUITesting, resetsPersistentDemo { UITestingLaunchCoordinator.resetPersistentDemoOnce() }
@@ -30,7 +39,9 @@ struct RootView: View {
         let credentialPersistence: CredentialPersistence = usesPersistentUITesting ? .uiTesting() : usesIsolatedPersistence ? .inMemory() : .live
         credentialMode = credentialPersistence.scope.rawValue
         var snapshot = AppSnapshot.demo
-        let requestedScreen = Self.launchValue(arguments: arguments, flag: "-present") ?? Self.launchValue(arguments: arguments, flag: "-screen")
+        let requestedScreen = Self.presentedScreen(for: requestedVisualScreen)
+            ?? Self.launchValue(arguments: arguments, flag: "-present")
+            ?? Self.launchValue(arguments: arguments, flag: "-screen")
         if let requestedAppearance = Self.launchValue(arguments: arguments, flag: "-appearance"),
            let appearance = AppearanceThemeID(rawValue: requestedAppearance) {
             snapshot.currentUser.appearanceThemeID = appearance
@@ -39,7 +50,8 @@ struct RootView: View {
         _store = State(initialValue: AppStore(snapshot: snapshot, persistence: persistence, credentialPersistence: credentialPersistence))
         let chatsScreens = ["chats", "accept", "decline", "meeting", "review", "complaint"]
         let mineScreens = ["profile", "sharing-center", "profile-preview", "edit-profile", "themes", "drink", "topic-swap", "appearance", "slots", "meeting-link"]
-        _selectedTab = State(initialValue: chatsScreens.contains(requestedScreen ?? "") ? .chats : mineScreens.contains(requestedScreen ?? "") ? .mine : .discover)
+        _selectedTab = State(initialValue: chatsScreens.contains(requestedScreen ?? "") || requestedVisualScreen == "chat-detail-booked" ? .chats : mineScreens.contains(requestedScreen ?? "") ? .mine : .discover)
+        _navigationPath = State(initialValue: Self.initialVisualPath(for: requestedVisualScreen))
         let initialSheet: SheetRoute? = switch requestedScreen {
         case "accept": .acceptInvitation("ord-in-ecoffee-1")
         case "decline": .declineInvitation("ord-in-ecoffee-1")
@@ -59,11 +71,11 @@ struct RootView: View {
         let mode = Self.launchValue(arguments: arguments, flag: "-auth-mode")
         _authMode = State(initialValue: requestedScreen == "login" || arguments.contains("-present-login") ? .login : requestedScreen == "register" || arguments.contains("-present-register") ? .register : requestedScreen == "reset" || arguments.contains("-present-reset") ? .reset : AuthMode(rawValue: mode ?? ""))
         authReferenceState = requestedScreen == "login" || requestedScreen == "register" || requestedScreen == "reset" || arguments.contains("-present-login") || arguments.contains("-present-register") || arguments.contains("-present-reset")
-        _launchInvite = State(initialValue: requestedScreen == "invite" || arguments.contains("-present-invite"))
-        _launchCheckoutID = State(initialValue: requestedScreen == "checkout" || arguments.contains("-present-checkout") || Self.launchValue(arguments: arguments, flag: "-payment-result") != nil ? "ord-out-accepted-pay-1" : nil)
-        _launchSharerDetailID = State(initialValue: requestedScreen == "sharer-detail" ? "elena-rodriguez" : nil)
-        _launchSharingCenter = State(initialValue: requestedScreen == "sharing-center" || ["edit-profile", "themes", "drink", "topic-swap", "appearance", "slots", "meeting-link"].contains(requestedScreen ?? ""))
-        _launchProfilePreview = State(initialValue: requestedScreen == "profile-preview")
+        _launchInvite = State(initialValue: requestedVisualScreen == nil && (requestedScreen == "invite" || arguments.contains("-present-invite")))
+        _launchCheckoutID = State(initialValue: requestedVisualScreen == nil && (requestedScreen == "checkout" || arguments.contains("-present-checkout") || Self.launchValue(arguments: arguments, flag: "-payment-result") != nil) ? "ord-out-accepted-pay-1" : nil)
+        _launchSharerDetailID = State(initialValue: requestedVisualScreen == nil && requestedScreen == "sharer-detail" ? "elena-rodriguez" : nil)
+        _launchSharingCenter = State(initialValue: requestedVisualScreen == nil && (requestedScreen == "sharing-center" || ["edit-profile", "themes", "drink", "topic-swap", "appearance", "slots", "meeting-link"].contains(requestedScreen ?? "")))
+        _launchProfilePreview = State(initialValue: requestedVisualScreen == nil && requestedScreen == "profile-preview")
         paymentResult = PaymentResult(rawValue: Self.launchValue(arguments: arguments, flag: "-payment-result") ?? "")
     }
 
@@ -117,6 +129,19 @@ struct RootView: View {
                 .accessibilityElement()
                 .accessibilityIdentifier("app.credential-mode")
                 .accessibilityValue(credentialMode)
+            if let visualScreen {
+                Color.clear
+                    .frame(width: 1, height: 1)
+                    .accessibilityElement()
+                    .accessibilityIdentifier("visual.\(visualScreen).ready")
+                    .accessibilityValue("ready")
+                if let visualCaptureToken {
+                    VisualReadyReporter {
+                        Self.publishVisualCaptureReady(token: visualCaptureToken, screen: visualScreen)
+                    }
+                    .frame(width: 1, height: 1)
+                }
+            }
         }
         .onAppear { presentLaunchRouteIfNeeded() }
         .onChange(of: selectedTab) { _, newTab in
@@ -281,6 +306,42 @@ struct RootView: View {
         return arguments[index + 1]
     }
 
+    private static func presentedScreen(for visualScreen: String?) -> String? {
+        switch visualScreen {
+        case "invitation": "invite"
+        case "reset-password": "reset"
+        default: visualScreen
+        }
+    }
+
+    private static func initialVisualPath(for visualScreen: String?) -> [AppRoute] {
+        switch visualScreen {
+        case "sharer-detail":
+            [.sharerDetail("elena-rodriguez")]
+        case "invitation":
+            [
+                .sharerDetail("elena-rodriguez"),
+                .createInvitation(sharerID: "elena-rodriguez", type: .coffee, themeID: "product-roadmap")
+            ]
+        case "checkout":
+            [.checkout("ord-out-accepted-pay-1")]
+        case "chat-detail-booked":
+            [.chatDetail("ord-out-booked-1")]
+        case "sharing-center":
+            [.sharingCenter]
+        default:
+            []
+        }
+    }
+
+    private static func publishVisualCaptureReady(token: String, screen: String) {
+        let permitted = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_."))
+        guard !token.isEmpty, token.unicodeScalars.allSatisfy(permitted.contains) else { return }
+        let readyURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("coffeelink-visual-\(token).ready")
+        try? Data("screen=\(screen)\n".utf8).write(to: readyURL, options: .atomic)
+    }
+
     private func openIncomingPendingInvitations() {
         chatsStartIncomingPending = true
         navigationPath.removeAll()
@@ -314,6 +375,32 @@ struct RootView: View {
             onTimeRate: user.onTimeRate,
             responseMedianTime: "1.5小时"
         )
+    }
+}
+
+private struct VisualReadyReporter: UIViewControllerRepresentable {
+    let report: @MainActor () -> Void
+
+    func makeUIViewController(context: Context) -> VisualReadyViewController {
+        let controller = VisualReadyViewController()
+        controller.report = report
+        return controller
+    }
+
+    func updateUIViewController(_ controller: VisualReadyViewController, context: Context) {
+        controller.report = report
+    }
+}
+
+private final class VisualReadyViewController: UIViewController {
+    var report: (@MainActor () -> Void)?
+    private var didReport = false
+
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        guard !didReport else { return }
+        didReport = true
+        report?()
     }
 }
 
