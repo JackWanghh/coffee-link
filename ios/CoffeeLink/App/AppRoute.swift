@@ -40,6 +40,8 @@ enum SheetRoute: Hashable, Identifiable {
     case manageThemes
     case selectDrink
     case topicSwapSettings
+    case manageSlots
+    case meetingLinkSettings
     case acceptInvitation(String)
     case declineInvitation(String)
     case review(String)
@@ -54,6 +56,8 @@ enum SheetRoute: Hashable, Identifiable {
         case .manageThemes: "manage-themes"
         case .selectDrink: "select-drink"
         case .topicSwapSettings: "topic-swap-settings"
+        case .manageSlots: "manage-slots"
+        case .meetingLinkSettings: "meeting-link-settings"
         case .acceptInvitation(let id): "accept-\(id)"
         case .declineInvitation(let id): "decline-\(id)"
         case .review(let id): "review-\(id)"
@@ -70,6 +74,8 @@ enum SheetRoute: Hashable, Identifiable {
         case .manageThemes: "管理分享主题"
         case .selectDrink: "选择签名饮品"
         case .topicSwapSettings: "主题互换设置"
+        case .manageSlots: "可预约时段"
+        case .meetingLinkSettings: "腾讯会议号配置"
         case .acceptInvitation: "接受邀请"
         case .declineInvitation: "婉拒邀请"
         case .review: "完成反馈"

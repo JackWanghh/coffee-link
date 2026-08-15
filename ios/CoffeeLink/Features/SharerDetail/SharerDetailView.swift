@@ -3,13 +3,15 @@ import SwiftUI
 struct SharerDetailView: View {
     let sharer: Sharer
     @Binding var path: [AppRoute]
+    let isPreview: Bool
     @Environment(\.dismiss) private var dismiss
     @State private var selectedThemeID: String
     @State private var selectedDayIndex: Int
 
-    init(sharer: Sharer, path: Binding<[AppRoute]>) {
+    init(sharer: Sharer, path: Binding<[AppRoute]>, isPreview: Bool = false) {
         self.sharer = sharer
         self._path = path
+        self.isPreview = isPreview
         self._selectedThemeID = State(initialValue: sharer.themes.first?.id ?? "")
         self._selectedDayIndex = State(initialValue: sharer.availableDays.firstIndex(where: { !$0.isFull }) ?? 0)
     }
@@ -19,6 +21,7 @@ struct SharerDetailView: View {
             navigationBar
             ScrollView(showsIndicators: false) {
                 VStack(spacing: 16) {
+                    if isPreview { previewNotice }
                     profileHeader
                     signatureDrinkCard
                     topicSwapCard
@@ -35,6 +38,17 @@ struct SharerDetailView: View {
         .background(CoffeeLinkTheme.background)
         .navigationBarHidden(true)
         .safeAreaInset(edge: .bottom, spacing: 0) { actionBar }
+    }
+
+    private var previewNotice: some View {
+        Label("这是你的公开名片预览，访客操作已隐藏", systemImage: "eye.fill")
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(CoffeeLinkTheme.accent)
+            .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+            .padding(.horizontal, 13)
+            .background(CoffeeLinkTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(CoffeeLinkTheme.accent.opacity(0.3), lineWidth: 1))
+            .accessibilityIdentifier("profile-preview.notice")
     }
 
     private var navigationBar: some View {
@@ -214,7 +228,7 @@ struct SharerDetailView: View {
             ForEach(sharer.reviews) { review in
                 VStack(alignment: .leading, spacing: 7) {
                     HStack {
-                        Text(review.authorInitials).font(.system(size: 10, weight: .bold)).foregroundStyle(.white).frame(width: 25, height: 25).background(CoffeeLinkTheme.accent, in: Circle())
+                        Text(review.authorInitials).font(.system(size: 10, weight: .bold)).foregroundStyle(CoffeeLinkTheme.onAccent).frame(width: 25, height: 25).background(CoffeeLinkTheme.accent, in: Circle())
                         Text(review.authorName).font(.system(size: 12, weight: .semibold)).foregroundStyle(CoffeeLinkTheme.primaryText)
                         Spacer()
                         HStack(spacing: 1) { ForEach(0..<review.rating, id: \.self) { _ in Image(systemName: "star.fill").font(.system(size: 10)).foregroundStyle(CoffeeLinkTheme.accent) } }
@@ -292,12 +306,32 @@ struct SharerDetailView: View {
     }
 
     private var actionBar: some View {
+        Group {
+            if isPreview {
+                Label("公开名片只读预览", systemImage: "lock.fill")
+                    .font(.system(size: 13, weight: .bold))
+                    .foregroundStyle(CoffeeLinkTheme.secondaryText)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .background(CoffeeLinkTheme.elevatedSurface, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(RoundedRectangle(cornerRadius: 12).stroke(CoffeeLinkTheme.border, lineWidth: 1))
+                    .accessibilityIdentifier("profile-preview.read-only")
+            } else {
+                invitationActions
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(CoffeeLinkTheme.background.opacity(0.98))
+        .overlay(alignment: .top) { Divider().overlay(CoffeeLinkTheme.border) }
+    }
+
+    private var invitationActions: some View {
         HStack(spacing: 10) {
             Button { path.append(.createInvitation(sharerID: sharer.id, type: .coffee, themeID: selectedThemeID)) } label: {
                 Label("请喝咖啡（¥\(decimalText(sharer.signatureDrink.price))）", systemImage: "cup.and.saucer.fill")
                     .font(.system(size: 13, weight: .bold))
                     .frame(maxWidth: .infinity, minHeight: 48)
-                    .foregroundStyle(.white)
+                    .foregroundStyle(CoffeeLinkTheme.onAccent)
                     .background(CoffeeLinkTheme.accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
             }
             .buttonStyle(.plain)
@@ -316,9 +350,5 @@ struct SharerDetailView: View {
                 .accessibilityIdentifier("主题互换（0元）")
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(CoffeeLinkTheme.background.opacity(0.98))
-        .overlay(alignment: .top) { Divider().overlay(CoffeeLinkTheme.border) }
     }
 }

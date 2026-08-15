@@ -3,6 +3,200 @@ import XCTest
 
 final class AppStoreTests: XCTestCase {
     @MainActor
+    func testFailedProfileSaveRollsBackAndDoesNotReportSuccess() {
+        let initial = AppSnapshot.demo
+        let store = AppStore(snapshot: initial, persistence: failingSnapshotPersistence)
+        var changed = initial.currentUser
+        changed.name = "保存失败的名字"
+
+        XCTAssertFalse(store.updateProfile(changed))
+        XCTAssertEqual(store.snapshot, initial)
+        XCTAssertEqual(store.lastErrorMessage, "本地数据保存失败")
+    }
+
+    @MainActor
+    func testSharingConfigurationPersistsAcrossStoreRebuild() {
+        let box = SnapshotBox()
+        let persistence = LocalPersistence(load: { box.snapshot }, save: { box.snapshot = $0 })
+        let store = AppStore(snapshot: .demo, persistence: persistence)
+        var profile = store.snapshot.currentUser
+        profile.name = "Alex Updated"
+        profile.title = "AI 产品负责人"
+        profile.company = "CoffeeLink Lab"
+        XCTAssertTrue(store.updateProfile(profile))
+
+        let themes = [ChatTheme(id: "theme-persisted", title: "职业转型复盘", description: "分享真实转型经历。", durationMinutes: 30, includes: ["经历复盘"], excludes: ["结果承诺"])]
+        XCTAssertTrue(store.updateThemes(themes))
+        XCTAssertTrue(store.selectDrink(id: "flat-white"))
+        XCTAssertTrue(store.updateAvailableSlots([AvailableSlot(id: "slot-profile-1", label: "11月2日 10:00 上午")]))
+        XCTAssertTrue(store.updateMeetingLink("https://meeting.tencent.com/dm/556677889"))
+        XCTAssertTrue(store.updateTopicSwapSettings(accepts: true, weeklyLimit: 5))
+        XCTAssertTrue(store.updateAppearance(themeID: .latte, autoCalendarSync: false, defaultMeetingReady: false, hapticsEnabled: false))
+
+        let rebuilt = AppStore(snapshot: .demo, persistence: persistence)
+        XCTAssertEqual(rebuilt.snapshot.currentUser.name, "Alex Updated")
+        XCTAssertEqual(rebuilt.snapshot.currentUser.myThemes, themes)
+        XCTAssertEqual(rebuilt.snapshot.currentUser.signatureDrink.id, "flat-white")
+        XCTAssertEqual(rebuilt.snapshot.currentUser.availableSlots.map(\.id), ["slot-profile-1"])
+        XCTAssertEqual(rebuilt.snapshot.currentUser.meetingLink?.absoluteString, "https://meeting.tencent.com/dm/556677889")
+        XCTAssertTrue(rebuilt.snapshot.currentUser.acceptsTopicSwap)
+        XCTAssertEqual(rebuilt.snapshot.currentUser.weeklySwapLimit, 5)
+        XCTAssertEqual(rebuilt.snapshot.currentUser.appearanceThemeID, .latte)
+        XCTAssertFalse(rebuilt.snapshot.currentUser.autoCalendarSync)
+        XCTAssertFalse(rebuilt.snapshot.currentUser.defaultMeetingReady)
+        XCTAssertFalse(rebuilt.snapshot.currentUser.hapticsEnabled)
+    }
+
+    @MainActor
+    func testSharingReadinessBlocksOpeningAndFailedToggleRollsBack() {
+        var incomplete = AppSnapshot.demo
+        incomplete.currentUser.isSharingOpen = false
+        incomplete.currentUser.meetingLink = nil
+        let incompleteStore = AppStore(snapshot: incomplete, persistence: .inMemory)
+
+        XCTAssertFalse(incompleteStore.toggleSharing())
+        XCTAssertFalse(incompleteStore.snapshot.currentUser.isSharingOpen)
+        XCTAssertEqual(incompleteStore.lastErrorMessage, "请先完成实名认证、公开资料、主题、签名饮品、可约时段和腾讯会议链接")
+
+        var ready = AppSnapshot.demo
+        ready.currentUser.isSharingOpen = false
+        let failingStore = AppStore(snapshot: ready, persistence: failingSnapshotPersistence)
+        XCTAssertFalse(failingStore.toggleSharing())
+        XCTAssertFalse(failingStore.snapshot.currentUser.isSharingOpen)
+        XCTAssertEqual(failingStore.lastErrorMessage, "本地数据保存失败")
+    }
+
+    @MainActor
+    func testOpenSharingRejectsEveryMutationThatWouldBreakReadiness() {
+        let original = AppSnapshot.demo
+
+        var invalidProfile = original.currentUser
+        invalidProfile.name = "   "
+        let profileStore = AppStore(snapshot: original, persistence: .inMemory)
+        XCTAssertFalse(profileStore.updateProfile(invalidProfile))
+        XCTAssertEqual(profileStore.snapshot, original)
+
+        let themesStore = AppStore(snapshot: original, persistence: .inMemory)
+        XCTAssertFalse(themesStore.updateThemes([]))
+        XCTAssertEqual(themesStore.snapshot, original)
+
+        let slotsStore = AppStore(snapshot: original, persistence: .inMemory)
+        let closedSlots = original.currentUser.availableSlots.map {
+            AvailableSlot(id: $0.id, label: $0.label, isAvailable: false)
+        }
+        XCTAssertFalse(slotsStore.updateAvailableSlots(closedSlots))
+        XCTAssertEqual(slotsStore.snapshot, original)
+
+        let meetingStore = AppStore(snapshot: original, persistence: .inMemory)
+        XCTAssertFalse(meetingStore.updateMeetingLink("https://example.com/no-meeting"))
+        XCTAssertEqual(meetingStore.snapshot, original)
+
+        let drinkStore = AppStore(snapshot: original, persistence: .inMemory)
+        XCTAssertFalse(drinkStore.selectDrink(id: "missing-drink"))
+        XCTAssertEqual(drinkStore.snapshot, original)
+    }
+
+    @MainActor
+    func testAvailableSlotsRejectDuplicateTrimmedLabelsAndRollBackAtomically() {
+        let original = AppSnapshot.demo
+        let store = AppStore(snapshot: original, persistence: .inMemory)
+        let duplicates = [
+            AvailableSlot(id: "slot-a", label: "  11月2日 10:00 上午 "),
+            AvailableSlot(id: "slot-b", label: "11月2日 10:00 上午")
+        ]
+
+        XCTAssertFalse(store.updateAvailableSlots(duplicates))
+        XCTAssertEqual(store.snapshot, original)
+        XCTAssertEqual(store.lastErrorMessage, "可约时段不能重复")
+    }
+
+    func testEveryAppearancePaletteUsesAccessibleOnAccentContrast() {
+        for theme in AppearanceThemeID.allCases {
+            XCTAssertGreaterThanOrEqual(
+                CoffeeLinkTheme.accentContrastRatio(for: theme),
+                4.5,
+                "\(theme.rawValue) selected text must meet WCAG AA"
+            )
+        }
+    }
+
+    func testEverySolidAccentBackgroundDeclaresDynamicOnAccentForeground() throws {
+        let testsFolder = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
+        let sourceFolder = testsFolder.deletingLastPathComponent().appending(path: "CoffeeLink", directoryHint: .isDirectory)
+        let keys: [URLResourceKey] = [.isRegularFileKey]
+        let files = try XCTUnwrap(FileManager.default.enumerator(at: sourceFolder, includingPropertiesForKeys: keys))
+            .compactMap { $0 as? URL }
+            .filter { $0.pathExtension == "swift" }
+        let backgroundPattern = try NSRegularExpression(pattern: #"\.background\((.*?), in:"#)
+        var violations: [String] = []
+
+        for file in files {
+            let source = String(decoding: try Data(contentsOf: file), as: UTF8.self)
+            let lines = source.components(separatedBy: .newlines)
+            for (index, line) in lines.enumerated() {
+                let range = NSRange(line.startIndex..<line.endIndex, in: line)
+                let hasSolidAccent = backgroundPattern.matches(in: line, range: range).contains { match in
+                    guard let argumentRange = Range(match.range(at: 1), in: line) else { return false }
+                    let argument = String(line[argumentRange])
+                    guard !argument.contains("CoffeeLinkTheme.accent.opacity"), !argument.contains(").opacity") else { return false }
+                    return argument.trimmingCharacters(in: .whitespaces).hasPrefix("CoffeeLinkTheme.accent")
+                        || argument.contains("? CoffeeLinkTheme.accent :")
+                }
+                guard hasSolidAccent else { continue }
+                let context = lines[max(0, index - 8)...index].joined(separator: "\n")
+                if !context.contains("CoffeeLinkTheme.onAccent") || context.contains(".white") {
+                    violations.append("\(file.lastPathComponent):\(index + 1)")
+                }
+            }
+        }
+
+        XCTAssertEqual(
+            violations,
+            [],
+            "Every solid dynamic accent background must pair with CoffeeLinkTheme.onAccent, never hard-coded white: \(violations.joined(separator: ", "))"
+        )
+    }
+
+    func testPersistentUICredentialsUseDedicatedFileStoreAndResetCleanly() throws {
+        let folder = FileManager.default.temporaryDirectory.appending(path: UUID().uuidString, directoryHint: .isDirectory)
+        defer { try? FileManager.default.removeItem(at: folder) }
+        let credentialURL = folder.appending(path: "credential.txt")
+        let credentials = CredentialPersistence.uiTesting(storageURL: credentialURL)
+
+        XCTAssertEqual(credentials.scope, .uiTestingFile)
+        XCTAssertNotEqual(credentials.scope, CredentialPersistence.live.scope)
+        XCTAssertNil(try credentials.load())
+        try credentials.save("UITestOnly123")
+        XCTAssertEqual(try CredentialPersistence.uiTesting(storageURL: credentialURL).load(), "UITestOnly123")
+        try credentials.reset()
+        XCTAssertNil(try credentials.load())
+    }
+
+    @MainActor
+    func testTask7LegacySnapshotDefaultsNewConfigurationWithoutReplacingExplicitEmptySlots() throws {
+        var snapshot = AppSnapshot.demo
+        snapshot.currentUser.availableSlots = []
+        let encoded = try JSONEncoder().encode(snapshot)
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        var user = try XCTUnwrap(object["currentUser"] as? [String: Any])
+        for key in ["appearanceThemeID", "autoCalendarSync", "defaultMeetingReady", "hapticsEnabled", "pendingEarnings", "settledEarnings"] {
+            user.removeValue(forKey: key)
+        }
+        object["currentUser"] = user
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+        let persistence = LocalPersistence(load: { try JSONDecoder().decode(AppSnapshot.self, from: legacy) }, save: { _ in })
+
+        let store = AppStore(snapshot: .demo, persistence: persistence)
+        XCTAssertEqual(store.snapshot.currentUser.appearanceThemeID, .obsidian)
+        XCTAssertTrue(store.snapshot.currentUser.autoCalendarSync)
+        XCTAssertTrue(store.snapshot.currentUser.defaultMeetingReady)
+        XCTAssertTrue(store.snapshot.currentUser.hapticsEnabled)
+        XCTAssertEqual(store.snapshot.currentUser.pendingEarnings, 140)
+        XCTAssertEqual(store.snapshot.currentUser.settledEarnings, 700)
+        XCTAssertTrue(store.snapshot.currentUser.availableSlots.isEmpty)
+    }
+
+    @MainActor
     func testFailedSnapshotSaveRollsBackLoginMutation() {
         let initial = AppSnapshot.demo
         let store = AppStore(snapshot: initial, persistence: failingSnapshotPersistence, credentialPersistence: .inMemory(initialPassword: "Original123"))

@@ -1,5 +1,40 @@
 import Foundation
 
+enum AppearanceThemeID: String, Codable, CaseIterable, Identifiable, Sendable {
+    case obsidian
+    case latte
+    case cyber
+    case emerald
+    case nordic
+    case rose
+
+    var id: String { rawValue }
+
+    var name: String {
+        switch self {
+        case .obsidian: "暗夜流光 (默认)"
+        case .latte: "暖阳燕麦 (经典浅色)"
+        case .cyber: "赛博霓虹 (极客紫青)"
+        case .emerald: "翡翠松林 (雅致绿意)"
+        case .nordic: "极简雪原 (北欧亮色)"
+        case .rose: "落日暮霞 (暗夜玫瑰)"
+        }
+    }
+
+    var subtitle: String {
+        switch self {
+        case .obsidian: "高奢曜黑与橙红流光"
+        case .latte: "温润燕麦米白与原木焦糖"
+        case .cyber: "深空魅影与霓虹电光流光"
+        case .emerald: "墨玉深绿与晶莹薄荷青"
+        case .nordic: "纯净冰原白与科技湛蓝"
+        case .rose: "深邃魅红与晚霞罗兰粉"
+        }
+    }
+
+    var isLight: Bool { self == .latte || self == .nordic }
+}
+
 struct CoffeeDrink: Codable, Hashable, Identifiable, Sendable {
     let id: String
     var name: String
@@ -138,6 +173,12 @@ struct UserProfile: Codable, Hashable, Identifiable, Sendable {
     var myThemes: [ChatTheme]
     var availableSlots: [AvailableSlot]
     var availableSlotsFieldWasPresent: Bool
+    var appearanceThemeID: AppearanceThemeID
+    var autoCalendarSync: Bool
+    var defaultMeetingReady: Bool
+    var hapticsEnabled: Bool
+    var pendingEarnings: Decimal
+    var settledEarnings: Decimal
 
     init(
         id: String,
@@ -161,7 +202,13 @@ struct UserProfile: Codable, Hashable, Identifiable, Sendable {
         completedSwapsCount: Int,
         meetingLink: URL?,
         myThemes: [ChatTheme],
-        availableSlots: [AvailableSlot]
+        availableSlots: [AvailableSlot],
+        appearanceThemeID: AppearanceThemeID = .obsidian,
+        autoCalendarSync: Bool = true,
+        defaultMeetingReady: Bool = true,
+        hapticsEnabled: Bool = true,
+        pendingEarnings: Decimal = 140,
+        settledEarnings: Decimal = 700
     ) {
         self.id = id
         self.name = name
@@ -186,10 +233,16 @@ struct UserProfile: Codable, Hashable, Identifiable, Sendable {
         self.myThemes = myThemes
         self.availableSlots = availableSlots
         self.availableSlotsFieldWasPresent = true
+        self.appearanceThemeID = appearanceThemeID
+        self.autoCalendarSync = autoCalendarSync
+        self.defaultMeetingReady = defaultMeetingReady
+        self.hapticsEnabled = hapticsEnabled
+        self.pendingEarnings = pendingEarnings
+        self.settledEarnings = settledEarnings
     }
 
     private enum CodingKeys: String, CodingKey {
-        case id, name, title, company, avatarURL, isVerified, totalChats, rating, replyRate, onTimeRate, phone, isLoggedIn, isSharingOpen, signatureDrink, acceptsTopicSwap, weeklySwapLimit, totalEarnings, completedSessionsCount, completedSwapsCount, meetingLink, myThemes, availableSlots
+        case id, name, title, company, avatarURL, isVerified, totalChats, rating, replyRate, onTimeRate, phone, isLoggedIn, isSharingOpen, signatureDrink, acceptsTopicSwap, weeklySwapLimit, totalEarnings, completedSessionsCount, completedSwapsCount, meetingLink, myThemes, availableSlots, appearanceThemeID, autoCalendarSync, defaultMeetingReady, hapticsEnabled, pendingEarnings, settledEarnings
     }
 
     init(from decoder: Decoder) throws {
@@ -217,6 +270,12 @@ struct UserProfile: Codable, Hashable, Identifiable, Sendable {
         myThemes = try container.decode([ChatTheme].self, forKey: .myThemes)
         availableSlotsFieldWasPresent = container.contains(.availableSlots)
         availableSlots = try container.decodeIfPresent([AvailableSlot].self, forKey: .availableSlots) ?? []
+        appearanceThemeID = try container.decodeIfPresent(AppearanceThemeID.self, forKey: .appearanceThemeID) ?? .obsidian
+        autoCalendarSync = try container.decodeIfPresent(Bool.self, forKey: .autoCalendarSync) ?? true
+        defaultMeetingReady = try container.decodeIfPresent(Bool.self, forKey: .defaultMeetingReady) ?? true
+        hapticsEnabled = try container.decodeIfPresent(Bool.self, forKey: .hapticsEnabled) ?? true
+        pendingEarnings = try container.decodeIfPresent(Decimal.self, forKey: .pendingEarnings) ?? 140
+        settledEarnings = try container.decodeIfPresent(Decimal.self, forKey: .settledEarnings) ?? 700
     }
 
     func encode(to encoder: Encoder) throws {
@@ -243,9 +302,28 @@ struct UserProfile: Codable, Hashable, Identifiable, Sendable {
         try container.encodeIfPresent(meetingLink, forKey: .meetingLink)
         try container.encode(myThemes, forKey: .myThemes)
         try container.encode(availableSlots, forKey: .availableSlots)
+        try container.encode(appearanceThemeID, forKey: .appearanceThemeID)
+        try container.encode(autoCalendarSync, forKey: .autoCalendarSync)
+        try container.encode(defaultMeetingReady, forKey: .defaultMeetingReady)
+        try container.encode(hapticsEnabled, forKey: .hapticsEnabled)
+        try container.encode(pendingEarnings, forKey: .pendingEarnings)
+        try container.encode(settledEarnings, forKey: .settledEarnings)
     }
 
     func availableSlot(id: String) -> AvailableSlot? {
         availableSlots.first { $0.id == id && $0.isAvailable }
     }
+
+    var sharingReadinessItems: [(title: String, isComplete: Bool)] {
+        [
+            ("实名认证", isVerified),
+            ("公开资料", !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !company.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
+            ("分享主题", !myThemes.isEmpty && myThemes.count <= 3),
+            ("签名饮品", !signatureDrink.id.isEmpty),
+            ("可约时段", availableSlots.contains(where: \.isAvailable)),
+            ("腾讯会议", meetingLink?.scheme == "https" && meetingLink?.host == "meeting.tencent.com")
+        ]
+    }
+
+    var isSharingReady: Bool { sharingReadinessItems.allSatisfy(\.isComplete) }
 }

@@ -7,8 +7,22 @@ struct ChatsListView: View {
     let store: AppStore
     @Binding var path: [AppRoute]
     let presentSheet: (SheetRoute) -> Void
-    @State private var direction: Direction = .sent
-    @State private var filter: Filter = .all
+    @State private var direction: Direction
+    @State private var filter: Filter
+
+    init(
+        store: AppStore,
+        path: Binding<[AppRoute]>,
+        presentSheet: @escaping (SheetRoute) -> Void,
+        initialDirection: Direction = .sent,
+        initialFilter: Filter = .all
+    ) {
+        self.store = store
+        self._path = path
+        self.presentSheet = presentSheet
+        self._direction = State(initialValue: initialDirection)
+        self._filter = State(initialValue: initialFilter)
+    }
 
     private var currentUserID: String { store.snapshot.currentUser.id }
     private var sentCount: Int { store.snapshot.sessions.filter { $0.senderID == currentUserID }.count }
@@ -50,12 +64,12 @@ struct ChatsListView: View {
     }
 
     private func directionButton(_ option: Direction, title: String) -> some View {
-        Button { direction = option } label: { Text(title).font(.system(size: 13, weight: direction == option ? .bold : .medium)).foregroundStyle(direction == option ? .white : CoffeeLinkTheme.secondaryText).frame(maxWidth: .infinity, minHeight: 36).background(direction == option ? CoffeeLinkTheme.accent : .clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous)) }.buttonStyle(.plain).accessibilityIdentifier(title)
+        Button { direction = option } label: { Text(title).font(.system(size: 13, weight: direction == option ? .bold : .medium)).foregroundStyle(direction == option ? CoffeeLinkTheme.onAccent : CoffeeLinkTheme.secondaryText).frame(maxWidth: .infinity, minHeight: 36).background(direction == option ? CoffeeLinkTheme.accent : .clear, in: RoundedRectangle(cornerRadius: 9, style: .continuous)) }.buttonStyle(.plain).accessibilityIdentifier(title).accessibilityValue(direction == option ? "已选择" : "未选择").accessibilityAddTraits(direction == option ? .isSelected : [])
     }
 
     private var filterPicker: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) { ForEach(Filter.allCases, id: \.rawValue) { item in Button { filter = item } label: { Text(item.rawValue).font(.system(size: 12, weight: filter == item ? .bold : .medium)).foregroundStyle(filter == item ? CoffeeLinkTheme.accent : CoffeeLinkTheme.secondaryText).padding(.horizontal, 13).padding(.vertical, 8).background(filter == item ? CoffeeLinkTheme.accent.opacity(0.14) : CoffeeLinkTheme.surface, in: Capsule()).overlay(Capsule().stroke(filter == item ? CoffeeLinkTheme.accent.opacity(0.35) : CoffeeLinkTheme.border, lineWidth: 1)) }.buttonStyle(.plain).accessibilityIdentifier(item.rawValue) } }
+            HStack(spacing: 8) { ForEach(Filter.allCases, id: \.rawValue) { item in Button { filter = item } label: { Text(item.rawValue).font(.system(size: 12, weight: filter == item ? .bold : .medium)).foregroundStyle(filter == item ? CoffeeLinkTheme.accent : CoffeeLinkTheme.secondaryText).padding(.horizontal, 13).padding(.vertical, 8).background(filter == item ? CoffeeLinkTheme.accent.opacity(0.14) : CoffeeLinkTheme.surface, in: Capsule()).overlay(Capsule().stroke(filter == item ? CoffeeLinkTheme.accent.opacity(0.35) : CoffeeLinkTheme.border, lineWidth: 1)) }.buttonStyle(.plain).accessibilityIdentifier(item.rawValue).accessibilityValue(filter == item ? "已选择" : "未选择").accessibilityAddTraits(filter == item ? .isSelected : []) } }
         }
     }
 
@@ -104,9 +118,9 @@ struct ChatsListView: View {
 
     @ViewBuilder private func actionRow(_ session: ChatSession, isSent: Bool) -> some View {
         if isSent && session.status == .acceptedPendingPayment {
-            Button { path.append(.checkout(session.id)) } label: { Label("立即支付 ¥\(decimalText(session.price ?? 0)) 并锁定对谈", systemImage: "creditcard").font(.system(size: 13, weight: .bold)).frame(maxWidth: .infinity).padding(.vertical, 12).foregroundStyle(.white).background(CoffeeLinkTheme.accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous)) }.buttonStyle(.plain).accessibilityIdentifier("session.pay.\(session.id)")
+            Button { path.append(.checkout(session.id)) } label: { Label("立即支付 ¥\(decimalText(session.price ?? 0)) 并锁定对谈", systemImage: "creditcard").font(.system(size: 13, weight: .bold)).frame(maxWidth: .infinity).padding(.vertical, 12).foregroundStyle(CoffeeLinkTheme.onAccent).background(CoffeeLinkTheme.accent, in: RoundedRectangle(cornerRadius: 12, style: .continuous)) }.buttonStyle(.plain).accessibilityIdentifier("session.pay.\(session.id)")
         } else if !isSent && (session.status == .pendingResponse || session.status == .needsNewTime) {
-            HStack(spacing: 9) { Button { presentSheet(.declineInvitation(session.id)) } label: { Label("婉拒", systemImage: "xmark.circle").font(.system(size: 12, weight: .bold)).frame(maxWidth: .infinity).padding(.vertical, 11).foregroundStyle(.red).background(CoffeeLinkTheme.elevatedSurface, in: RoundedRectangle(cornerRadius: 11, style: .continuous)) }.buttonStyle(.plain); Button { presentSheet(.acceptInvitation(session.id)) } label: { Label("接受并确认时间", systemImage: "checkmark").font(.system(size: 12, weight: .bold)).frame(maxWidth: .infinity).padding(.vertical, 11).foregroundStyle(.white).background(CoffeeLinkTheme.accent, in: RoundedRectangle(cornerRadius: 11, style: .continuous)) }.buttonStyle(.plain) }
+            HStack(spacing: 9) { Button { presentSheet(.declineInvitation(session.id)) } label: { Label("婉拒", systemImage: "xmark.circle").font(.system(size: 12, weight: .bold)).frame(maxWidth: .infinity).padding(.vertical, 11).foregroundStyle(.red).background(CoffeeLinkTheme.elevatedSurface, in: RoundedRectangle(cornerRadius: 11, style: .continuous)) }.buttonStyle(.plain); Button { presentSheet(.acceptInvitation(session.id)) } label: { Label("接受并确认时间", systemImage: "checkmark").font(.system(size: 12, weight: .bold)).frame(maxWidth: .infinity).padding(.vertical, 11).foregroundStyle(CoffeeLinkTheme.onAccent).background(CoffeeLinkTheme.accent, in: RoundedRectangle(cornerRadius: 11, style: .continuous)) }.buttonStyle(.plain) }
         } else if session.status == .booked || session.status == .swapScheduled {
             Button { presentSheet(.meeting(sessionID: session.id)) } label: { Label("进入腾讯会议（\(session.meetingID)）", systemImage: "video").font(.system(size: 12, weight: .bold)).frame(maxWidth: .infinity).padding(.vertical, 11).foregroundStyle(.blue).background(.blue.opacity(0.08), in: RoundedRectangle(cornerRadius: 11, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 11, style: .continuous).stroke(.blue.opacity(0.22), lineWidth: 1)) }.buttonStyle(.plain)
         }

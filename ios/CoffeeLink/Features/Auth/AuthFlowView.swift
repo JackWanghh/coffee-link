@@ -132,7 +132,7 @@ struct AuthFlowView: View {
             HStack(spacing: 11) {
                 Image(systemName: "cup.and.saucer.fill")
                     .font(.system(size: 21, weight: .bold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(CoffeeLinkTheme.onAccent)
                     .frame(width: 38, height: 38)
                     .background(CoffeeLinkTheme.accent, in: RoundedRectangle(cornerRadius: 11, style: .continuous))
                 VStack(alignment: .leading, spacing: 2) {
@@ -175,6 +175,7 @@ struct AuthFlowView: View {
                 TextField("138****8888", text: $draft.phone)
                     .keyboardType(.phonePad).textContentType(.telephoneNumber).focused($focusedField, equals: .phone)
                     .foregroundStyle(CoffeeLinkTheme.primaryText).tint(CoffeeLinkTheme.accent)
+                    .accessibilityIdentifier("auth.phone")
             }
             .padding(.horizontal, 14).frame(height: 48).background(Color.black.opacity(0.24), in: RoundedRectangle(cornerRadius: 12, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
         }
@@ -184,7 +185,7 @@ struct AuthFlowView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(mode == .reset ? "短信安全验证码 (6位数字)" : "短信验证码 (6位数字)").font(.system(size: 13, weight: .semibold)).foregroundStyle(CoffeeLinkTheme.primaryText)
             HStack(spacing: 8) {
-                TextField("6位短信验证码", text: $draft.otp).keyboardType(.numberPad).textContentType(.oneTimeCode).focused($focusedField, equals: .otp).foregroundStyle(CoffeeLinkTheme.primaryText).tint(CoffeeLinkTheme.accent)
+                TextField("6位短信验证码", text: $draft.otp).keyboardType(.numberPad).textContentType(.oneTimeCode).focused($focusedField, equals: .otp).foregroundStyle(CoffeeLinkTheme.primaryText).tint(CoffeeLinkTheme.accent).accessibilityIdentifier("auth.otp")
                 Button("获取验证码") {}.font(.system(size: 13, weight: .bold)).foregroundStyle(CoffeeLinkTheme.accent).frame(width: 91, height: 40).background(CoffeeLinkTheme.accent.opacity(0.12), in: RoundedRectangle(cornerRadius: 10, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 10, style: .continuous).stroke(CoffeeLinkTheme.accent.opacity(0.35), lineWidth: 1))
             }
             .padding(.leading, 14).padding(.trailing, 4).frame(height: 48).background(Color.black.opacity(0.24), in: RoundedRectangle(cornerRadius: 12, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))
@@ -196,7 +197,7 @@ struct AuthFlowView: View {
             HStack { Text(label).font(.system(size: 13, weight: .semibold)).foregroundStyle(CoffeeLinkTheme.primaryText); Spacer(); if mode == .login { Button("忘记密码？") { setMode(.reset) }.font(.system(size: 12, weight: .medium)).foregroundStyle(CoffeeLinkTheme.accent) } }
             HStack(spacing: 9) {
                 Image(systemName: "lock").foregroundStyle(CoffeeLinkTheme.secondaryText)
-                SecureField(placeholder, text: binding).textContentType(mode == .login ? .password : .newPassword).focused($focusedField, equals: field).foregroundStyle(CoffeeLinkTheme.primaryText).tint(CoffeeLinkTheme.accent)
+                SecureField(placeholder, text: binding).textContentType(mode == .login ? .password : .newPassword).focused($focusedField, equals: field).foregroundStyle(CoffeeLinkTheme.primaryText).tint(CoffeeLinkTheme.accent).accessibilityIdentifier(field == .password ? "auth.password" : "auth.confirmation")
                 Image(systemName: "eye").foregroundStyle(CoffeeLinkTheme.secondaryText)
             }
             .padding(.horizontal, 14).frame(height: 48).background(Color.black.opacity(0.24), in: RoundedRectangle(cornerRadius: 12, style: .continuous)).overlay(RoundedRectangle(cornerRadius: 12, style: .continuous).stroke(CoffeeLinkTheme.border, lineWidth: 1))

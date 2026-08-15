@@ -32,7 +32,7 @@ struct DiscoverView: View {
                         ForEach(industries, id: \.self) { industry in
                             Button(industry) { selectedIndustry = industry }
                                 .font(.system(size: 12, weight: selectedIndustry == industry ? .semibold : .medium))
-                                .foregroundStyle(selectedIndustry == industry ? .white : CoffeeLinkTheme.secondaryText)
+                                .foregroundStyle(selectedIndustry == industry ? CoffeeLinkTheme.onAccent : CoffeeLinkTheme.secondaryText)
                                 .padding(.horizontal, 14)
                                 .frame(height: 31)
                                 .background(selectedIndustry == industry ? CoffeeLinkTheme.accent : CoffeeLinkTheme.surface, in: Capsule())

@@ -121,7 +121,7 @@ struct CoffeePrimaryButton: View {
                 .font(.system(size: 16, weight: .bold))
                 .frame(maxWidth: .infinity)
                 .frame(minHeight: 48)
-                .foregroundStyle(CoffeeLinkTheme.primaryText)
+                .foregroundStyle(isEnabled ? CoffeeLinkTheme.onAccent : CoffeeLinkTheme.primaryText)
                 .background(isEnabled ? CoffeeLinkTheme.accent : CoffeeLinkTheme.secondaryText.opacity(0.25), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
         }
         .buttonStyle(.plain)
@@ -133,6 +133,8 @@ struct CoffeePrimaryButton: View {
 struct CoffeeTopBar: View {
     let title: String
     var trailingAction: (() -> Void)?
+    var trailingSystemImage = "ellipsis"
+    var trailingAccessibilityIdentifier: String?
 
     var body: some View {
         ZStack {
@@ -154,13 +156,14 @@ struct CoffeeTopBar: View {
     private var trailingSlot: some View {
         if let trailingAction {
             Button(action: trailingAction) {
-                Image(systemName: "ellipsis")
+                Image(systemName: trailingSystemImage)
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundStyle(CoffeeLinkTheme.secondaryText)
                     .frame(width: 44, height: 44)
             }
             .buttonStyle(.plain)
             .accessibilityLabel("设置")
+            .accessibilityIdentifier(trailingAccessibilityIdentifier ?? "")
         } else {
             Color.clear.frame(width: 44, height: 44)
         }

@@ -186,7 +186,7 @@ struct ComplaintSheet: View {
 private struct FlowTags: View {
     let tags: [String]
     @Binding var selection: String?
-    var body: some View { HStack(spacing: 8) { ForEach(tags, id: \.self) { tag in Button(tag) { selection = selection == tag ? nil : tag }.font(.system(size: 12, weight: .semibold)).foregroundStyle(selection == tag ? CoffeeLinkTheme.primaryText : CoffeeLinkTheme.secondaryText).padding(.horizontal, 10).padding(.vertical, 8).background(selection == tag ? CoffeeLinkTheme.accent : CoffeeLinkTheme.elevatedSurface, in: Capsule()).accessibilityLabel("评价标签：\(tag)").accessibilityValue(selection == tag ? "已选择" : "未选择").accessibilityAddTraits(selection == tag ? .isSelected : []) } } }
+    var body: some View { HStack(spacing: 8) { ForEach(tags, id: \.self) { tag in Button(tag) { selection = selection == tag ? nil : tag }.font(.system(size: 12, weight: .semibold)).foregroundStyle(selection == tag ? CoffeeLinkTheme.onAccent : CoffeeLinkTheme.secondaryText).padding(.horizontal, 10).padding(.vertical, 8).background(selection == tag ? CoffeeLinkTheme.accent : CoffeeLinkTheme.elevatedSurface, in: Capsule()).accessibilityLabel("评价标签：\(tag)").accessibilityValue(selection == tag ? "已选择" : "未选择").accessibilityAddTraits(selection == tag ? .isSelected : []) } } }
 }
 
 private func sheetCard(title: String, detail: String) -> some View {

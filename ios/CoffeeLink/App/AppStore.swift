@@ -49,6 +49,7 @@ final class AppStore {
             self.credentialPassword = nil
             self.lastErrorMessage = "凭据读取失败，请稍后重试"
         }
+        CoffeeLinkTheme.activate(self.snapshot.currentUser.appearanceThemeID)
     }
 
     func session(id: String) -> ChatSession? {
@@ -280,9 +281,99 @@ final class AppStore {
         }
     }
 
-    func updateProfile(_ profile: UserProfile) {
-        snapshot.currentUser = profile
-        save()
+    @discardableResult
+    func updateProfile(_ profile: UserProfile) -> Bool {
+        updateCurrentUser { $0 = profile }
+    }
+
+    @discardableResult
+    func updateThemes(_ themes: [ChatTheme]) -> Bool {
+        guard themes.count <= 3,
+              themes.allSatisfy({ !$0.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !$0.description.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }) else {
+            lastErrorMessage = "最多可上架 3 个填写完整的分享主题"
+            return false
+        }
+        return updateCurrentUser { $0.myThemes = themes }
+    }
+
+    @discardableResult
+    func selectDrink(id: String) -> Bool {
+        guard let drink = DemoData.coffeeCatalog.first(where: { $0.id == id }) else {
+            lastErrorMessage = "未找到签名饮品"
+            return false
+        }
+        return updateCurrentUser { $0.signatureDrink = drink }
+    }
+
+    @discardableResult
+    func updateTopicSwapSettings(accepts: Bool, weeklyLimit: Int) -> Bool {
+        guard [1, 2, 3, 5].contains(weeklyLimit) else {
+            lastErrorMessage = "请选择有效的每周互换上限"
+            return false
+        }
+        return updateCurrentUser {
+            $0.acceptsTopicSwap = accepts
+            $0.weeklySwapLimit = weeklyLimit
+        }
+    }
+
+    @discardableResult
+    func updateAvailableSlots(_ slots: [AvailableSlot]) -> Bool {
+        let trimmedSlots = slots.map {
+            AvailableSlot(id: $0.id, label: $0.label.trimmingCharacters(in: .whitespacesAndNewlines), isAvailable: $0.isAvailable)
+        }
+        guard trimmedSlots.allSatisfy({ !$0.id.isEmpty && !$0.label.isEmpty }), Set(trimmedSlots.map(\.id)).count == trimmedSlots.count else {
+            lastErrorMessage = "请填写有效的可约时段"
+            return false
+        }
+        guard Set(trimmedSlots.map(\.label)).count == trimmedSlots.count else {
+            lastErrorMessage = "可约时段不能重复"
+            return false
+        }
+        guard !snapshot.currentUser.isSharingOpen || trimmedSlots.contains(where: \.isAvailable) else {
+            lastErrorMessage = "开放分享期间，请至少保留一个可预约时段"
+            return false
+        }
+        return updateCurrentUser { $0.availableSlots = trimmedSlots }
+    }
+
+    @discardableResult
+    func updateMeetingLink(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let url = URL(string: trimmed), url.scheme == "https", url.host == "meeting.tencent.com", !url.lastPathComponent.isEmpty else {
+            lastErrorMessage = "请输入有效的腾讯会议链接"
+            return false
+        }
+        return updateCurrentUser { $0.meetingLink = url }
+    }
+
+    @discardableResult
+    func updateAppearance(
+        themeID: AppearanceThemeID,
+        autoCalendarSync: Bool,
+        defaultMeetingReady: Bool,
+        hapticsEnabled: Bool
+    ) -> Bool {
+        let didSave = updateCurrentUser {
+            $0.appearanceThemeID = themeID
+            $0.autoCalendarSync = autoCalendarSync
+            $0.defaultMeetingReady = defaultMeetingReady
+            $0.hapticsEnabled = hapticsEnabled
+        }
+        if didSave { CoffeeLinkTheme.activate(themeID) }
+        return didSave
+    }
+
+    @discardableResult
+    func toggleSharing() -> Bool {
+        if snapshot.currentUser.isSharingOpen {
+            return updateCurrentUser { $0.isSharingOpen = false }
+        }
+        guard snapshot.currentUser.isSharingReady else {
+            lastErrorMessage = "请先完成实名认证、公开资料、主题、签名饮品、可约时段和腾讯会议链接"
+            return false
+        }
+        return updateCurrentUser { $0.isSharingOpen = true }
     }
 
     func login(phone: String, password: String) -> Bool {
@@ -371,6 +462,7 @@ final class AppStore {
             rollbackCredential(to: previousCredential)
             return
         }
+        CoffeeLinkTheme.activate(snapshot.currentUser.appearanceThemeID)
     }
 
     @discardableResult
@@ -381,6 +473,23 @@ final class AppStore {
         }
         let previousSnapshot = snapshot
         mutate(&snapshot, index)
+        guard save() else {
+            snapshot = previousSnapshot
+            return false
+        }
+        return true
+    }
+
+    @discardableResult
+    private func updateCurrentUser(_ mutate: (inout UserProfile) -> Void) -> Bool {
+        let previousSnapshot = snapshot
+        var candidate = snapshot.currentUser
+        mutate(&candidate)
+        guard !candidate.isSharingOpen || candidate.isSharingReady else {
+            lastErrorMessage = "开放分享期间，请保持实名认证、公开资料、分享主题、签名饮品、可约时段和腾讯会议链接完整"
+            return false
+        }
+        snapshot.currentUser = candidate
         guard save() else {
             snapshot = previousSnapshot
             return false
@@ -464,10 +573,14 @@ final class AppStore {
     }
 
     private static func normalizeLoadedSnapshot(_ snapshot: AppSnapshot) -> AppSnapshot {
-        guard !snapshot.currentUser.availableSlotsFieldWasPresent else { return snapshot }
-        var migrated = snapshot
-        migrated.currentUser.availableSlots = DemoData.incomingAvailableSlots
-        migrated.currentUser.availableSlotsFieldWasPresent = true
-        return migrated
+        var normalized = snapshot
+        if !normalized.currentUser.availableSlotsFieldWasPresent {
+            normalized.currentUser.availableSlots = DemoData.incomingAvailableSlots
+            normalized.currentUser.availableSlotsFieldWasPresent = true
+        }
+        if normalized.currentUser.isSharingOpen && !normalized.currentUser.isSharingReady {
+            normalized.currentUser.isSharingOpen = false
+        }
+        return normalized
     }
 }

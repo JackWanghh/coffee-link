@@ -2,6 +2,198 @@ import XCTest
 
 final class CoreFlowsUITests: XCTestCase {
     @MainActor
+    func testProfileMatchesCoreProductContent() {
+        let app = launchResetDemo()
+        app.buttons["tab.mine"].tap()
+
+        for text in ["Alex Chen", "AI 产品经理 @ TechFlow Lab", "身份已核验", "+86 138****8888", "14", "4.9", "100%", "分享中心", "燕麦拿铁（¥28）", "互换（周限3次）", "我的对谈与日程", "外观与主题切换", "对谈安全与履约保障", "切换账号 / 退出登录"] {
+            XCTAssertTrue(app.staticTexts[text].waitForExistence(timeout: 2), "Missing Profile copy: \(text)")
+        }
+    }
+
+    @MainActor
+    func testSignatureDrinkChangePersistsAcrossRelaunch() {
+        let app = launchPersistentResetDemo()
+        app.buttons["tab.mine"].tap()
+        app.buttons["进入分享中心"].tap()
+        app.buttons["设置签名饮品"].tap()
+        app.buttons["drink.flat-white"].tap()
+        app.buttons["确认选定"].tap()
+        XCTAssertTrue(app.staticTexts["澳白咖啡 ¥26"].waitForExistence(timeout: 2))
+
+        app.terminate()
+        app.launchArguments = ["-ui-testing", "-persistent-ui-testing"]
+        app.launchEnvironment["COFFEELINK_RESET_PERSISTENT_DEMO"] = "0"
+        app.launch()
+        app.buttons["tab.mine"].tap()
+        XCTAssertTrue(app.staticTexts["澳白咖啡（¥26）"].waitForExistence(timeout: 2))
+    }
+
+    @MainActor
+    func testAppearanceActuallyChangesAndPersistsAcrossRelaunch() {
+        let app = launchPersistentResetDemo()
+        app.buttons["tab.mine"].tap()
+        app.buttons["profile.settings"].tap()
+        app.buttons["appearance.latte"].tap()
+        XCTAssertEqual(app.otherElements["app.theme"].value as? String, "latte")
+        app.buttons["保存并应用"].tap()
+
+        app.terminate()
+        app.launchArguments = ["-ui-testing", "-persistent-ui-testing"]
+        app.launchEnvironment["COFFEELINK_RESET_PERSISTENT_DEMO"] = "0"
+        app.launch()
+        XCTAssertEqual(app.otherElements["app.theme"].value as? String, "latte")
+    }
+
+    @MainActor
+    func testPendingInvitationsShortcutOpensIncomingPendingFilter() {
+        let app = launchResetDemo()
+        app.buttons["tab.mine"].tap()
+        app.buttons["进入分享中心"].tap()
+        app.buttons["sharing.pending-invitations"].tap()
+
+        XCTAssertTrue(app.buttons["发给我的邀请（2）"].isSelected)
+        XCTAssertTrue(app.buttons["待回应"].isSelected)
+        XCTAssertTrue(app.buttons["session.incoming-coffee"].waitForExistence(timeout: 2))
+    }
+
+    @MainActor
+    func testSharingCenterOpensEditPublicProfileFromNormalPath() {
+        let app = launchResetDemo()
+        app.buttons["tab.mine"].tap()
+        app.buttons["进入分享中心"].tap()
+
+        let editProfile = app.buttons["sharing.edit-profile"]
+        XCTAssertTrue(editProfile.waitForExistence(timeout: 2))
+        XCTAssertTrue(editProfile.isHittable)
+        editProfile.tap()
+        XCTAssertTrue(app.staticTexts["编辑公开资料"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.textFields["profile.name"].exists)
+    }
+
+    @MainActor
+    func testCurrentUserPublicPreviewIsExplicitlyReadOnly() {
+        let app = launchResetDemo()
+        app.buttons["tab.mine"].tap()
+        app.buttons["进入分享中心"].tap()
+        let preview = app.buttons["sharing.preview-profile"]
+        while !preview.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        preview.tap()
+
+        XCTAssertTrue(app.staticTexts["这是你的公开名片预览，访客操作已隐藏"].waitForExistence(timeout: 2))
+        XCTAssertFalse(app.buttons.matching(NSPredicate(format: "label BEGINSWITH '请喝咖啡'")).firstMatch.exists)
+        XCTAssertFalse(app.buttons["主题互换（0元）"].exists)
+        XCTAssertFalse(app.staticTexts["未找到分享者"].exists)
+    }
+
+    @MainActor
+    func testOpenSharingCannotSaveAllSlotsClosedAndRemainsConsistent() {
+        let app = launchResetDemo()
+        app.buttons["tab.mine"].tap()
+        app.buttons["进入分享中心"].tap()
+        XCTAssertTrue(app.staticTexts["已开启分享功能"].waitForExistence(timeout: 2))
+        app.buttons["可预约时段排期"].tap()
+
+        let slotButtons = app.buttons.matching(NSPredicate(format: "label BEGINSWITH '时段 '"))
+        XCTAssertGreaterThan(slotButtons.count, 0)
+        for index in 0..<slotButtons.count {
+            let slot = slotButtons.element(boundBy: index)
+            while !slot.isHittable { app.scrollViews.firstMatch.swipeUp() }
+            if (slot.value as? String) == "开放" { slot.tap() }
+        }
+        let save = app.buttons["保存时段"]
+        while !save.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        save.tap()
+
+        XCTAssertTrue(app.staticTexts["开放分享期间，请至少保留一个可预约时段"].waitForExistence(timeout: 2))
+        app.buttons["取消"].tap()
+        XCTAssertTrue(app.staticTexts["已开启分享功能"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.staticTexts["已开放 5 个未来 30 天时段"].exists)
+    }
+
+    @MainActor
+    func testTask7SelectionControlsMeetTouchAndVoiceOverRequirements() {
+        let app = launchResetDemo()
+        app.buttons["tab.mine"].tap()
+        app.buttons["进入分享中心"].tap()
+        let sharingToggle = app.buttons["sharing.toggle"]
+        XCTAssertGreaterThanOrEqual(sharingToggle.frame.height, 44)
+        XCTAssertEqual(sharingToggle.value as? String, "已开启")
+
+        let swapSettings = app.buttons["设置额度"]
+        while !swapSettings.isHittable { app.scrollViews.firstMatch.swipeUp() }
+        swapSettings.tap()
+        for limit in [1, 2, 3, 5] {
+            let control = app.buttons["swap.limit.\(limit)"]
+            XCTAssertGreaterThanOrEqual(control.frame.height, 44)
+            XCTAssertTrue(["已选择", "未选择"].contains(control.value as? String ?? ""))
+        }
+    }
+
+    @MainActor
+    func testEmeraldAccentFilledActionsRemainReachable() {
+        let detail = XCUIApplication()
+        detail.launchArguments = ["-ui-testing", "-reset-demo", "-present", "sharer-detail", "-appearance", "emerald"]
+        detail.launch()
+        XCTAssertEqual(detail.otherElements["app.theme"].value as? String, "emerald")
+        let coffeeAction = detail.buttons["请喝咖啡（¥22）"]
+        XCTAssertTrue(coffeeAction.waitForExistence(timeout: 2))
+        XCTAssertTrue(coffeeAction.isHittable)
+        detail.terminate()
+
+        let chats = XCUIApplication()
+        chats.launchArguments = ["-ui-testing", "-reset-demo", "-present", "chats", "-appearance", "emerald"]
+        chats.launch()
+        XCTAssertEqual(chats.otherElements["app.theme"].value as? String, "emerald")
+        let paymentAction = chats.buttons["session.pay.ord-out-accepted-pay-1"]
+        XCTAssertTrue(paymentAction.waitForExistence(timeout: 2))
+        XCTAssertTrue(paymentAction.isHittable)
+        chats.buttons["发给我的邀请（2）"].tap()
+        let acceptActions = chats.buttons.matching(identifier: "接受并确认时间")
+        XCTAssertGreaterThan(acceptActions.count, 0)
+        if !acceptActions.allElementsBoundByIndex.contains(where: \.isHittable) {
+            chats.scrollViews.firstMatch.swipeUp()
+        }
+        XCTAssertTrue(acceptActions.allElementsBoundByIndex.contains(where: \.isHittable))
+    }
+
+    @MainActor
+    func testPersistentUICredentialsAreIsolatedAndSurviveOneRelaunch() {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-persistent-ui-testing", "-reset-demo", "-auth-mode", "reset"]
+        app.launchEnvironment["COFFEELINK_PERSISTENT_UI_TESTING"] = "1"
+        app.launchEnvironment["COFFEELINK_RESET_PERSISTENT_DEMO"] = "1"
+        app.launch()
+        XCTAssertEqual(app.otherElements["app.credential-mode"].value as? String, "ui-testing-file")
+
+        let password = app.secureTextFields["auth.password"]
+        let confirmation = app.secureTextFields["auth.confirmation"]
+        replaceText(in: password, with: "UITestPass123")
+        replaceText(in: confirmation, with: "UITestPass123")
+        app.buttons["auth.submit"].tap()
+        XCTAssertTrue(app.staticTexts["密码登录"].waitForExistence(timeout: 2))
+
+        app.terminate()
+        app.launchArguments = ["-ui-testing", "-persistent-ui-testing", "-auth-mode", "login"]
+        app.launchEnvironment["COFFEELINK_RESET_PERSISTENT_DEMO"] = "0"
+        app.launch()
+        XCTAssertEqual(app.otherElements["app.credential-mode"].value as? String, "ui-testing-file")
+        let loginPassword = app.secureTextFields["auth.password"]
+        replaceText(in: loginPassword, with: "UITestPass123")
+        app.buttons["auth.submit"].tap()
+        XCTAssertFalse(app.otherElements["auth.overlay"].waitForExistence(timeout: 1))
+
+        app.terminate()
+        app.launchArguments = ["-ui-testing", "-persistent-ui-testing", "-reset-demo", "-auth-mode", "login"]
+        app.launchEnvironment["COFFEELINK_RESET_PERSISTENT_DEMO"] = "1"
+        app.launch()
+        XCTAssertEqual(app.otherElements["app.credential-mode"].value as? String, "ui-testing-file")
+        app.buttons["auth.submit"].tap()
+        XCTAssertFalse(app.otherElements["auth.overlay"].waitForExistence(timeout: 1))
+        app.terminate()
+    }
+
+    @MainActor
     func testDiscoverOpensElenaDetail() {
         let app = launchResetDemo()
         let elenaCard = app.buttons["sharer.elena-rodriguez"]
@@ -297,10 +489,28 @@ final class CoreFlowsUITests: XCTestCase {
     }
 
     @MainActor
+    private func launchPersistentResetDemo() -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-testing", "-persistent-ui-testing", "-reset-demo"]
+        app.launchEnvironment["COFFEELINK_PERSISTENT_UI_TESTING"] = "1"
+        app.launchEnvironment["COFFEELINK_RESET_PERSISTENT_DEMO"] = "1"
+        app.launch()
+        XCTAssertEqual(app.otherElements["app.persistence-mode"].value as? String, "ui-testing-persistent")
+        return app
+    }
+
+    @MainActor
     private func launchScreen(_ screen: String) -> XCUIApplication {
         let app = XCUIApplication()
         app.launchArguments = ["-ui-testing", "-reset-demo", "-present", screen]
         app.launch()
         return app
+    }
+
+    @MainActor
+    private func replaceText(in element: XCUIElement, with text: String) {
+        element.tap()
+        element.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: 24))
+        element.typeText(text)
     }
 }

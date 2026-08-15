@@ -9,26 +9,50 @@ struct RootView: View {
     @State private var pendingInvitation: InvitationDraft?
     @State private var launchInvite = false
     @State private var launchCheckoutID: String?
+    @State private var launchSharerDetailID: String?
+    @State private var launchSharingCenter = false
+    @State private var launchProfilePreview = false
+    @State private var chatsStartIncomingPending = false
     private let paymentResult: PaymentResult?
     private let authReferenceState: Bool
+    private let persistenceMode: String
+    private let credentialMode: String
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
-        let usesIsolatedPersistence = arguments.contains("-ui-testing") || arguments.contains("-reset-demo")
-        let persistence: LocalPersistence = usesIsolatedPersistence ? .inMemory : .live
-        let credentialPersistence: CredentialPersistence = usesIsolatedPersistence ? .inMemory() : .live
+        let environment = ProcessInfo.processInfo.environment
+        let usesPersistentUITesting = arguments.contains("-persistent-ui-testing") || environment["COFFEELINK_PERSISTENT_UI_TESTING"] == "1"
+        let resetsPersistentDemo = arguments.contains("-reset-demo") || environment["COFFEELINK_RESET_PERSISTENT_DEMO"] == "1"
+        if usesPersistentUITesting, resetsPersistentDemo { UITestingLaunchCoordinator.resetPersistentDemoOnce() }
+        let usesIsolatedPersistence = (arguments.contains("-ui-testing") || arguments.contains("-reset-demo")) && !usesPersistentUITesting
+        let persistence: LocalPersistence = usesPersistentUITesting ? .uiTesting : usesIsolatedPersistence ? .inMemory : .live
+        persistenceMode = usesPersistentUITesting ? "ui-testing-persistent" : usesIsolatedPersistence ? "ui-testing-isolated" : "live"
+        let credentialPersistence: CredentialPersistence = usesPersistentUITesting ? .uiTesting() : usesIsolatedPersistence ? .inMemory() : .live
+        credentialMode = credentialPersistence.scope.rawValue
         var snapshot = AppSnapshot.demo
         let requestedScreen = Self.launchValue(arguments: arguments, flag: "-present") ?? Self.launchValue(arguments: arguments, flag: "-screen")
+        if let requestedAppearance = Self.launchValue(arguments: arguments, flag: "-appearance"),
+           let appearance = AppearanceThemeID(rawValue: requestedAppearance) {
+            snapshot.currentUser.appearanceThemeID = appearance
+        }
         if arguments.contains("-logged-out") || requestedScreen == "invite" { snapshot.currentUser.isLoggedIn = false }
         _store = State(initialValue: AppStore(snapshot: snapshot, persistence: persistence, credentialPersistence: credentialPersistence))
         let chatsScreens = ["chats", "accept", "decline", "meeting", "review", "complaint"]
-        _selectedTab = State(initialValue: chatsScreens.contains(requestedScreen ?? "") ? .chats : .discover)
+        let mineScreens = ["profile", "sharing-center", "profile-preview", "edit-profile", "themes", "drink", "topic-swap", "appearance", "slots", "meeting-link"]
+        _selectedTab = State(initialValue: chatsScreens.contains(requestedScreen ?? "") ? .chats : mineScreens.contains(requestedScreen ?? "") ? .mine : .discover)
         let initialSheet: SheetRoute? = switch requestedScreen {
         case "accept": .acceptInvitation("ord-in-ecoffee-1")
         case "decline": .declineInvitation("ord-in-ecoffee-1")
         case "meeting": .meeting(sessionID: "ord-out-booked-1")
         case "review": .review("ord-completed-1")
         case "complaint": .complaint("ord-completed-1")
+        case "edit-profile": .editProfile
+        case "themes": .manageThemes
+        case "drink": .selectDrink
+        case "topic-swap": .topicSwapSettings
+        case "appearance": .settings
+        case "slots": .manageSlots
+        case "meeting-link": .meetingLinkSettings
         default: nil
         }
         _sheetRoute = State(initialValue: initialSheet)
@@ -37,6 +61,9 @@ struct RootView: View {
         authReferenceState = requestedScreen == "login" || requestedScreen == "register" || requestedScreen == "reset" || arguments.contains("-present-login") || arguments.contains("-present-register") || arguments.contains("-present-reset")
         _launchInvite = State(initialValue: requestedScreen == "invite" || arguments.contains("-present-invite"))
         _launchCheckoutID = State(initialValue: requestedScreen == "checkout" || arguments.contains("-present-checkout") || Self.launchValue(arguments: arguments, flag: "-payment-result") != nil ? "ord-out-accepted-pay-1" : nil)
+        _launchSharerDetailID = State(initialValue: requestedScreen == "sharer-detail" ? "elena-rodriguez" : nil)
+        _launchSharingCenter = State(initialValue: requestedScreen == "sharing-center" || ["edit-profile", "themes", "drink", "topic-swap", "appearance", "slots", "meeting-link"].contains(requestedScreen ?? ""))
+        _launchProfilePreview = State(initialValue: requestedScreen == "profile-preview")
         paymentResult = PaymentResult(rawValue: Self.launchValue(arguments: arguments, flag: "-payment-result") ?? "")
     }
 
@@ -44,9 +71,12 @@ struct RootView: View {
         ZStack {
             NavigationStack(path: $navigationPath) {
                 VStack(spacing: 0) {
-                    CoffeeTopBar(title: selectedTab.title) {
-                        sheetRoute = .settings
-                    }
+                    CoffeeTopBar(
+                        title: selectedTab.title,
+                        trailingAction: { sheetRoute = .settings },
+                        trailingSystemImage: selectedTab == .mine ? "gearshape" : "ellipsis",
+                        trailingAccessibilityIdentifier: selectedTab == .mine ? "profile.settings" : nil
+                    )
                     tabContent
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -72,10 +102,28 @@ struct RootView: View {
                     .transition(.opacity)
                     .zIndex(2)
             }
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("app.theme")
+                .accessibilityValue(store.snapshot.currentUser.appearanceThemeID.rawValue)
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("app.persistence-mode")
+                .accessibilityValue(persistenceMode)
+            Color.clear
+                .frame(width: 1, height: 1)
+                .accessibilityElement()
+                .accessibilityIdentifier("app.credential-mode")
+                .accessibilityValue(credentialMode)
         }
         .onAppear { presentLaunchRouteIfNeeded() }
-        .onChange(of: selectedTab) { _, _ in navigationPath.removeAll() }
-        .preferredColorScheme(.dark)
+        .onChange(of: selectedTab) { _, newTab in
+            navigationPath.removeAll()
+            if newTab != .chats { chatsStartIncomingPending = false }
+        }
+        .preferredColorScheme(store.snapshot.currentUser.appearanceThemeID.isLight ? .light : .dark)
     }
 
     @ViewBuilder
@@ -84,13 +132,22 @@ struct RootView: View {
         case .discover:
             DiscoverView(store: store, path: $navigationPath)
         case .chats:
-            ChatsListView(store: store, path: $navigationPath) { route in
-                sheetRoute = route
-            }
+            ChatsListView(
+                store: store,
+                path: $navigationPath,
+                presentSheet: { route in sheetRoute = route },
+                initialDirection: chatsStartIncomingPending ? .incoming : .sent,
+                initialFilter: chatsStartIncomingPending ? .pending : .all
+            )
+            .id(chatsStartIncomingPending)
         case .mine:
-            ProfileTabView(profile: store.snapshot.currentUser) {
-                navigationPath.append(.sharingCenter)
-            }
+            ProfileView(
+                profile: store.snapshot.currentUser,
+                openSharingCenter: { navigationPath.append(.sharingCenter) },
+                openChats: { chatsStartIncomingPending = false; selectedTab = .chats },
+                openAppearance: { sheetRoute = .settings },
+                logout: { store.setLoggedIn(false) }
+            )
         }
     }
 
@@ -98,7 +155,9 @@ struct RootView: View {
     private func routeDestination(_ route: AppRoute) -> some View {
         switch route {
         case .sharerDetail(let id):
-            if let sharer = store.snapshot.sharers.first(where: { $0.id == id }) {
+            if id == store.snapshot.currentUser.id {
+                SharerDetailView(sharer: currentUserPreview, path: $navigationPath, isPreview: true)
+            } else if let sharer = store.snapshot.sharers.first(where: { $0.id == id }) {
                 SharerDetailView(sharer: sharer, path: $navigationPath)
             } else {
                 RoutePlaceholderView(title: "分享者详情", subtitle: "CoffeeLink")
@@ -119,7 +178,13 @@ struct RootView: View {
                 sheetRoute = route
             })
         case .sharingCenter:
-            RoutePlaceholderView(title: "分享中心", subtitle: "管理主题、饮品与开放状态")
+            SharingCenterView(
+                store: store,
+                onBack: { _ = navigationPath.popLast() },
+                presentSheet: { sheetRoute = $0 },
+                previewProfile: { navigationPath.append(.sharerDetail(store.snapshot.currentUser.id)) },
+                openPendingInvitations: openIncomingPendingInvitations
+            )
         }
     }
 
@@ -147,14 +212,28 @@ struct RootView: View {
         case .complaint(let id):
             if let session = store.session(id: id) { ComplaintSheet(store: store, session: session) { sheetRoute = nil } }
             else { SheetPlaceholderView(route: route) }
-        default:
+        case .settings:
+            AppearanceSheet(store: store) { sheetRoute = nil }
+        case .editProfile:
+            EditProfileSheet(store: store) { sheetRoute = nil }
+        case .manageThemes:
+            ManageThemesSheet(store: store) { sheetRoute = nil }
+        case .selectDrink:
+            SelectDrinkSheet(store: store) { sheetRoute = nil }
+        case .topicSwapSettings:
+            TopicSwapSettingsSheet(store: store) { sheetRoute = nil }
+        case .manageSlots:
+            ManageSlotsSheet(store: store) { sheetRoute = nil }
+        case .meetingLinkSettings:
+            MeetingLinkSettingsSheet(store: store) { sheetRoute = nil }
+        case .auth:
             SheetPlaceholderView(route: route)
         }
     }
 
     private func sheetDetents(for route: SheetRoute) -> Set<PresentationDetent> {
         switch route {
-        case .acceptInvitation, .review, .complaint: [.large]
+        case .acceptInvitation, .review, .complaint, .settings, .editProfile, .manageThemes, .selectDrink, .manageSlots: [.large]
         default: [.medium]
         }
     }
@@ -183,11 +262,70 @@ struct RootView: View {
             launchCheckoutID = nil
             navigationPath = paymentResult == nil ? [.checkout(id)] : [.chatDetail(id), .checkout(id)]
         }
+        if let id = launchSharerDetailID {
+            launchSharerDetailID = nil
+            navigationPath = [.sharerDetail(id)]
+        }
+        if launchSharingCenter {
+            launchSharingCenter = false
+            navigationPath = [.sharingCenter]
+        }
+        if launchProfilePreview {
+            launchProfilePreview = false
+            navigationPath = [.sharingCenter, .sharerDetail(store.snapshot.currentUser.id)]
+        }
     }
 
     private static func launchValue(arguments: [String], flag: String) -> String? {
         guard let index = arguments.firstIndex(of: flag), arguments.indices.contains(index + 1) else { return nil }
         return arguments[index + 1]
+    }
+
+    private func openIncomingPendingInvitations() {
+        chatsStartIncomingPending = true
+        navigationPath.removeAll()
+        selectedTab = .chats
+    }
+
+    private var currentUserPreview: Sharer {
+        let user = store.snapshot.currentUser
+        return Sharer(
+            id: user.id,
+            name: user.name,
+            title: user.title,
+            company: user.company,
+            avatarURL: user.avatarURL,
+            industry: "AI 产品与增长",
+            isVerified: user.isVerified,
+            declarationNote: "职业信息由用户自行填写，平台未核验",
+            highlights: ["从传统互联网产品转型 AI Native 产品经理。", "参与企业级 Agent 项目从需求验证到落地复盘。", "持续实践早期产品冷启动与用户增长。"],
+            signatureDrink: user.signatureDrink,
+            acceptsTopicSwap: user.acceptsTopicSwap,
+            weeklySwapLimit: user.weeklySwapLimit,
+            remainingSwapQuota: max(user.weeklySwapLimit - 1, 0),
+            themes: user.myThemes,
+            nextAvailableText: user.availableSlots.first(where: \.isAvailable).map { "最早可约：\($0.label)" } ?? "暂无可约时间",
+            availableDays: [AvailabilityDay(date: "未来30天", dayOfWeek: "可预约", slotsCount: user.availableSlots.filter(\.isAvailable).count, isFull: !user.availableSlots.contains(where: \.isAvailable), slots: user.availableSlots)],
+            reviews: [],
+            rating: user.rating,
+            reviewCount: user.completedSessionsCount,
+            swapFeedbackCount: user.completedSwapsCount,
+            meetingLink: user.meetingLink,
+            onTimeRate: user.onTimeRate,
+            responseMedianTime: "1.5小时"
+        )
+    }
+}
+
+@MainActor
+private enum UITestingLaunchCoordinator {
+    private static var didResetPersistentDemo = false
+
+    static func resetPersistentDemoOnce() {
+        guard !didResetPersistentDemo else { return }
+        didResetPersistentDemo = true
+        try? LocalPersistence.resetUITestingStorage()
+        try? CredentialPersistence.resetUITestingStorage()
     }
 }
 

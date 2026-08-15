@@ -16,3 +16,6 @@ Task 5: fix round 2/3 (1 addressed, 0 open — transactional snapshot/credential
 Task 5: complete (commits 2d2f3fc..f8e6c40, review clean)
 Task 6: fix round 1/3 (5 addressed, 0 open — explicit-empty slot persistence, sheet error isolation, VoiceOver choice semantics, cancellation confirmation, complaint validation)
 Task 6: complete (base f8e6c40, 44/44 tests passed, visual P0/P1/P2=0, independent review clean)
+Task 7: fix round 1/3 (6 addressed, 0 open — edit-profile reachability, read-only self preview, sharing readiness invariant, UI credential isolation, duplicate slot labels, touch/contrast accessibility)
+Task 7: fix round 2/3 (1 addressed, 0 open — dynamic onAccent foreground applied to all accent-filled controls; one non-blocking P3 lint-maintenance note)
+Task 7: complete (base 76cdc15, 63/63 tests passed, visual P0/P1/P2=0, independent review approved)
