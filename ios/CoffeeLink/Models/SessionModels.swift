@@ -60,6 +60,7 @@ struct ChatSession: Codable, Hashable, Identifiable, Sendable {
     var offering: String?
     var receiverQuestion: String?
     var candidateSlots: [String]
+    var confirmedSlotID: String?
     var confirmedSlot: String?
     var coffeeDrink: CoffeeDrink?
     var price: Decimal?

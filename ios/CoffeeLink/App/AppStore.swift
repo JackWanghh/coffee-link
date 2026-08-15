@@ -7,6 +7,7 @@ enum AppStoreError: LocalizedError, Sendable {
     case slotNotFound
     case topicSwapUnavailable
     case invalidSessionState
+    case persistenceFailed
 
     var errorDescription: String? {
         switch self {
@@ -15,6 +16,7 @@ enum AppStoreError: LocalizedError, Sendable {
         case .slotNotFound: "未找到可约时间"
         case .topicSwapUnavailable: "对方暂未开启主题互换"
         case .invalidSessionState: "当前状态不能执行该操作"
+        case .persistenceFailed: "本地数据保存失败"
         }
     }
 }
@@ -35,7 +37,7 @@ final class AppStore {
         self.persistence = persistence
         self.credentialPersistence = credentialPersistence
         do {
-            self.snapshot = try persistence.load() ?? snapshot
+            self.snapshot = Self.normalizeLoadedSnapshot(try persistence.load() ?? snapshot)
             self.lastErrorMessage = nil
         } catch {
             self.snapshot = .demo
@@ -88,6 +90,7 @@ final class AppStore {
             offering: nil,
             receiverQuestion: nil,
             candidateSlots: slots,
+            confirmedSlotID: nil,
             confirmedSlot: nil,
             coffeeDrink: sharer.signatureDrink,
             price: sharer.signatureDrink.price,
@@ -104,8 +107,12 @@ final class AppStore {
             review: nil,
             complaintReason: nil
         )
+        let previousSnapshot = snapshot
         snapshot.sessions.insert(session, at: 0)
-        save()
+        guard save() else {
+            snapshot = previousSnapshot
+            throw AppStoreError.persistenceFailed
+        }
         return id
     }
 
@@ -148,6 +155,7 @@ final class AppStore {
             offering: offering,
             receiverQuestion: nil,
             candidateSlots: slots,
+            confirmedSlotID: nil,
             confirmedSlot: nil,
             coffeeDrink: nil,
             price: nil,
@@ -164,61 +172,111 @@ final class AppStore {
             review: nil,
             complaintReason: nil
         )
+        let previousSnapshot = snapshot
         snapshot.sessions.insert(session, at: 0)
-        save()
+        guard save() else {
+            snapshot = previousSnapshot
+            throw AppStoreError.persistenceFailed
+        }
         return id
     }
 
-    func acceptInvitation(id: String, confirmedSlotID: String, receiverQuestion: String?) {
-        let confirmedSlot = snapshot.sharers.first { $0.id == session(id: id)?.receiverID }?.slot(id: confirmedSlotID)?.label ?? confirmedSlotID
-        updateSession(id: id) { session in
-            guard session.status == .pendingResponse || session.status == .needsNewTime else { return }
-            session.confirmedSlot = confirmedSlot
-            session.receiverQuestion = receiverQuestion
-            session.status = session.type == .coffee ? .acceptedPendingPayment : .swapScheduled
-            session.statusLabel = session.type == .coffee ? "待付款" : "已排期"
+    @discardableResult
+    func acceptInvitation(id: String, confirmedSlotID: String, receiverQuestion: String?) -> Bool {
+        guard let existing = session(id: id), existing.status == .pendingResponse || existing.status == .needsNewTime else {
+            lastErrorMessage = AppStoreError.invalidSessionState.localizedDescription
+            return false
+        }
+        guard let confirmedSlot = availableSlot(receiverID: existing.receiverID, id: confirmedSlotID), existing.candidateSlots.contains(confirmedSlot.label) else {
+            lastErrorMessage = "请选择仍可用的对谈时段"
+            return false
+        }
+        let trimmedQuestion = receiverQuestion?.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard existing.type != .topicSwap || (trimmedQuestion?.count ?? 0) >= 8 else {
+            lastErrorMessage = "主题互换请补充不少于 8 个字的问题"
+            return false
+        }
+        return updateSession(id: id) { snapshot, index in
+            snapshot.sessions[index].confirmedSlotID = confirmedSlot.id
+            snapshot.sessions[index].confirmedSlot = confirmedSlot.label
+            snapshot.sessions[index].receiverQuestion = trimmedQuestion?.isEmpty == false ? trimmedQuestion : nil
+            snapshot.sessions[index].status = snapshot.sessions[index].type == .coffee ? .acceptedPendingPayment : .swapScheduled
+            snapshot.sessions[index].statusLabel = snapshot.sessions[index].type == .coffee ? "待付款" : "已排期"
+            reserveSlot(receiverID: existing.receiverID, id: confirmedSlot.id, snapshot: &snapshot)
         }
     }
 
-    func declineInvitation(id: String, reason: String? = nil) {
-        updateSession(id: id) { session in
-            guard session.status == .pendingResponse || session.status == .needsNewTime else { return }
-            session.status = .declined
-            session.statusLabel = "已婉拒"
-            session.declineReason = reason
+    @discardableResult
+    func declineInvitation(id: String, reason: String) -> Bool {
+        let trimmedReason = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedReason.isEmpty, let existing = session(id: id), existing.status == .pendingResponse || existing.status == .needsNewTime else {
+            lastErrorMessage = "请选择婉拒原因"
+            return false
+        }
+        return updateSession(id: id) { snapshot, index in
+            snapshot.sessions[index].status = .declined
+            snapshot.sessions[index].statusLabel = "已婉拒"
+            snapshot.sessions[index].declineReason = trimmedReason
         }
     }
 
-    func completePayment(id: String, method: PaymentMethod) {
-        updateSession(id: id) { session in
-            guard session.type == .coffee, session.status == .acceptedPendingPayment else { return }
-            session.paymentMethod = method
-            session.paymentDeadline = nil
-            session.status = .booked
-            session.statusLabel = "已预约"
+    @discardableResult
+    func completePayment(id: String, method: PaymentMethod) -> Bool {
+        guard let existing = session(id: id), existing.type == .coffee, existing.status == .acceptedPendingPayment else {
+            lastErrorMessage = AppStoreError.invalidSessionState.localizedDescription
+            return false
+        }
+        return updateSession(id: id) { snapshot, index in
+            snapshot.sessions[index].paymentMethod = method
+            snapshot.sessions[index].paymentDeadline = nil
+            snapshot.sessions[index].status = .booked
+            snapshot.sessions[index].statusLabel = "已预约"
         }
     }
 
-    func cancelSession(id: String) {
-        updateSession(id: id) { session in
-            guard session.status != .completed, session.status != .cancelled else { return }
-            session.status = .cancelled
-            session.statusLabel = "已取消"
+    @discardableResult
+    func cancelSession(id: String) -> Bool {
+        guard let existing = session(id: id), [.pendingResponse, .needsNewTime, .booked, .swapScheduled].contains(existing.status) else {
+            lastErrorMessage = AppStoreError.invalidSessionState.localizedDescription
+            return false
+        }
+        return updateSession(id: id) { snapshot, index in
+            snapshot.sessions[index].status = .cancelled
+            snapshot.sessions[index].statusLabel = "已取消"
         }
     }
 
-    func submitReview(id: String, rating: Int, comment: String, tag: String? = nil) {
-        updateSession(id: id) { session in
-            guard (1...5).contains(rating) else { return }
-            session.review = SessionReview(rating: rating, comment: comment, tag: tag, createdAt: "刚刚")
+    @discardableResult
+    func submitReview(id: String, rating: Int, comment: String, tag: String? = nil) -> Bool {
+        guard let existing = session(id: id), existing.status == .completed, (1...5).contains(rating) else {
+            lastErrorMessage = "请完成 1 至 5 星评价"
+            return false
+        }
+        return updateSession(id: id) { snapshot, index in
+            snapshot.sessions[index].review = SessionReview(rating: rating, comment: comment.trimmingCharacters(in: .whitespacesAndNewlines), tag: tag, createdAt: "刚刚")
         }
     }
 
-    func submitComplaint(id: String, reason: String) {
-        updateSession(id: id) { session in
-            session.complaintReason = reason
-            session.status = .inAfterSale
-            session.statusLabel = "售后中"
+    @discardableResult
+    func submitComplaint(id: String, category: String, description: String) -> Bool {
+        let trimmedCategory = category.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmedDescription = description.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedCategory.isEmpty else {
+            lastErrorMessage = "请选择投诉类别"
+            return false
+        }
+        guard !trimmedDescription.isEmpty else {
+            lastErrorMessage = "请填写问题说明"
+            return false
+        }
+        guard let existing = session(id: id), existing.status == .completed else {
+            lastErrorMessage = AppStoreError.invalidSessionState.localizedDescription
+            return false
+        }
+        return updateSession(id: id) { snapshot, index in
+            snapshot.sessions[index].complaintReason = "\(trimmedCategory)：\(trimmedDescription)"
+            snapshot.sessions[index].status = .inAfterSale
+            snapshot.sessions[index].statusLabel = "售后中"
         }
     }
 
@@ -315,10 +373,46 @@ final class AppStore {
         }
     }
 
-    private func updateSession(id: String, mutate: (inout ChatSession) -> Void) {
-        guard let index = snapshot.sessions.firstIndex(where: { $0.id == id }) else { return }
-        mutate(&snapshot.sessions[index])
-        save()
+    @discardableResult
+    private func updateSession(id: String, mutate: (inout AppSnapshot, Int) -> Void) -> Bool {
+        guard let index = snapshot.sessions.firstIndex(where: { $0.id == id }) else {
+            lastErrorMessage = "未找到对谈"
+            return false
+        }
+        let previousSnapshot = snapshot
+        mutate(&snapshot, index)
+        guard save() else {
+            snapshot = previousSnapshot
+            return false
+        }
+        return true
+    }
+
+    func availableSlots(for session: ChatSession) -> [AvailableSlot] {
+        liveSlots(for: session.receiverID).filter { $0.isAvailable && session.candidateSlots.contains($0.label) }
+    }
+
+    private func availableSlot(receiverID: String, id: String) -> AvailableSlot? {
+        liveSlots(for: receiverID).first { $0.id == id && $0.isAvailable }
+    }
+
+    private func liveSlots(for receiverID: String) -> [AvailableSlot] {
+        if receiverID == snapshot.currentUser.id { return snapshot.currentUser.availableSlots }
+        return snapshot.sharers.first(where: { $0.id == receiverID })?.availableDays.flatMap(\.slots) ?? []
+    }
+
+    private func reserveSlot(receiverID: String, id: String, snapshot: inout AppSnapshot) {
+        if receiverID == snapshot.currentUser.id {
+            guard let index = snapshot.currentUser.availableSlots.firstIndex(where: { $0.id == id }) else { return }
+            snapshot.currentUser.availableSlots[index].isAvailable = false
+            return
+        }
+        guard let sharerIndex = snapshot.sharers.firstIndex(where: { $0.id == receiverID }) else { return }
+        for dayIndex in snapshot.sharers[sharerIndex].availableDays.indices {
+            guard let slotIndex = snapshot.sharers[sharerIndex].availableDays[dayIndex].slots.firstIndex(where: { $0.id == id }) else { continue }
+            snapshot.sharers[sharerIndex].availableDays[dayIndex].slots[slotIndex].isAvailable = false
+            return
+        }
     }
 
     private func sharer(id: String) throws -> Sharer {
@@ -367,5 +461,13 @@ final class AppStore {
         } catch {
             lastErrorMessage = "本地数据保存失败；凭据回滚失败"
         }
+    }
+
+    private static func normalizeLoadedSnapshot(_ snapshot: AppSnapshot) -> AppSnapshot {
+        guard !snapshot.currentUser.availableSlotsFieldWasPresent else { return snapshot }
+        var migrated = snapshot
+        migrated.currentUser.availableSlots = DemoData.incomingAvailableSlots
+        migrated.currentUser.availableSlotsFieldWasPresent = true
+        return migrated
     }
 }

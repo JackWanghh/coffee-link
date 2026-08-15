@@ -21,6 +21,17 @@ struct RootView: View {
         let requestedScreen = Self.launchValue(arguments: arguments, flag: "-present") ?? Self.launchValue(arguments: arguments, flag: "-screen")
         if arguments.contains("-logged-out") || requestedScreen == "invite" { snapshot.currentUser.isLoggedIn = false }
         _store = State(initialValue: AppStore(snapshot: snapshot, persistence: persistence, credentialPersistence: credentialPersistence))
+        let chatsScreens = ["chats", "accept", "decline", "meeting", "review", "complaint"]
+        _selectedTab = State(initialValue: chatsScreens.contains(requestedScreen ?? "") ? .chats : .discover)
+        let initialSheet: SheetRoute? = switch requestedScreen {
+        case "accept": .acceptInvitation("ord-in-ecoffee-1")
+        case "decline": .declineInvitation("ord-in-ecoffee-1")
+        case "meeting": .meeting(sessionID: "ord-out-booked-1")
+        case "review": .review("ord-completed-1")
+        case "complaint": .complaint("ord-completed-1")
+        default: nil
+        }
+        _sheetRoute = State(initialValue: initialSheet)
         let mode = Self.launchValue(arguments: arguments, flag: "-auth-mode")
         _authMode = State(initialValue: requestedScreen == "login" || arguments.contains("-present-login") ? .login : requestedScreen == "register" || arguments.contains("-present-register") ? .register : requestedScreen == "reset" || arguments.contains("-present-reset") ? .reset : AuthMode(rawValue: mode ?? ""))
         authReferenceState = requestedScreen == "login" || requestedScreen == "register" || requestedScreen == "reset" || arguments.contains("-present-login") || arguments.contains("-present-register") || arguments.contains("-present-reset")
@@ -52,8 +63,8 @@ struct RootView: View {
                 }
             }
             .sheet(item: $sheetRoute) { route in
-                SheetPlaceholderView(route: route)
-                    .presentationDetents([.medium])
+                sheetDestination(route)
+                    .presentationDetents(sheetDetents(for: route))
                     .presentationDragIndicator(.visible)
             }
             if let authMode {
@@ -73,7 +84,9 @@ struct RootView: View {
         case .discover:
             DiscoverView(store: store, path: $navigationPath)
         case .chats:
-            ChatsTabView(sessions: store.snapshot.sessions)
+            ChatsListView(store: store, path: $navigationPath) { route in
+                sheetRoute = route
+            }
         case .mine:
             ProfileTabView(profile: store.snapshot.currentUser) {
                 navigationPath.append(.sharingCenter)
@@ -100,7 +113,11 @@ struct RootView: View {
         case .checkout(let id):
             BookingCheckoutView(store: store, sessionID: id, forcedResult: paymentResult, onCompleted: openChatDetail, onDismiss: { _ = navigationPath.popLast() })
         case .chatDetail(let id):
-            ChatDetailPreview(session: store.session(id: id))
+            ChatDetailView(store: store, sessionID: id, onBack: { _ = navigationPath.popLast() }, openCheckout: { checkoutID in
+                navigationPath = [.checkout(checkoutID)]
+            }, presentSheet: { route in
+                sheetRoute = route
+            })
         case .sharingCenter:
             RoutePlaceholderView(title: "分享中心", subtitle: "管理主题、饮品与开放状态")
         }
@@ -108,6 +125,38 @@ struct RootView: View {
 
     private func openChatDetail(_ id: String) {
         navigationPath = [.chatDetail(id)]
+    }
+
+    @ViewBuilder
+    private func sheetDestination(_ route: SheetRoute) -> some View {
+        switch route {
+        case .acceptInvitation(let id):
+            if let session = store.session(id: id) {
+                AcceptInvitationSheet(store: store, session: session) { sheetRoute = nil }
+            } else { SheetPlaceholderView(route: route) }
+        case .declineInvitation(let id):
+            if let session = store.session(id: id) {
+                DeclineInvitationSheet(store: store, session: session) { sheetRoute = nil }
+            } else { SheetPlaceholderView(route: route) }
+        case .meeting(let id):
+            if let session = store.session(id: id) { MeetingSheet(session: session) }
+            else { SheetPlaceholderView(route: route) }
+        case .review(let id):
+            if let session = store.session(id: id) { ReviewSheet(store: store, session: session) { sheetRoute = nil } }
+            else { SheetPlaceholderView(route: route) }
+        case .complaint(let id):
+            if let session = store.session(id: id) { ComplaintSheet(store: store, session: session) { sheetRoute = nil } }
+            else { SheetPlaceholderView(route: route) }
+        default:
+            SheetPlaceholderView(route: route)
+        }
+    }
+
+    private func sheetDetents(for route: SheetRoute) -> Set<PresentationDetent> {
+        switch route {
+        case .acceptInvitation, .review, .complaint: [.large]
+        default: [.medium]
+        }
     }
 
     private func resumePendingInvitation() {
@@ -132,7 +181,7 @@ struct RootView: View {
         }
         if let id = launchCheckoutID {
             launchCheckoutID = nil
-            navigationPath = [.checkout(id)]
+            navigationPath = paymentResult == nil ? [.checkout(id)] : [.chatDetail(id), .checkout(id)]
         }
     }
 

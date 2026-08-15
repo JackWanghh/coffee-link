@@ -6,6 +6,12 @@ enum PaymentResult: String {
     case cancelled
 }
 
+enum CheckoutPaymentResolution {
+    static func result(for requested: PaymentResult, didPersist: Bool) -> PaymentResult {
+        requested == .success && !didPersist ? .failure : requested
+    }
+}
+
 struct BookingCheckoutView: View {
     let store: AppStore
     let sessionID: String
@@ -14,6 +20,7 @@ struct BookingCheckoutView: View {
     let onDismiss: () -> Void
     @State private var method: PaymentMethod = .wechat
     @State private var result: PaymentResult?
+    @State private var paymentError: String?
 
     init(store: AppStore, sessionID: String, forcedResult: PaymentResult? = nil, onCompleted: @escaping (String) -> Void, onDismiss: @escaping () -> Void) {
         self.store = store
@@ -36,6 +43,7 @@ struct BookingCheckoutView: View {
                         refundCard
                         paymentMethods
                         if let result { paymentResultCard(result) }
+                        if let paymentError { Text(paymentError).font(.system(size: 12, weight: .medium)).foregroundStyle(.red).padding(12).frame(maxWidth: .infinity, alignment: .leading).background(Color.red.opacity(0.12), in: RoundedRectangle(cornerRadius: 12, style: .continuous)) }
                     }
                     .padding(20).padding(.bottom, 100)
                 }
@@ -43,7 +51,8 @@ struct BookingCheckoutView: View {
             .background(CoffeeLinkTheme.background)
             .navigationBarHidden(true)
             .safeAreaInset(edge: .bottom, spacing: 0) { actionBar(session) }
-            .onAppear { if let forcedResult { result = forcedResult } }
+            .onAppear { presentForcedResultIfNeeded(session) }
+            .accessibilityElement(children: .contain)
             .accessibilityIdentifier("checkout.screen")
         }
     }
@@ -51,7 +60,7 @@ struct BookingCheckoutView: View {
     private var navigationBar: some View {
         ZStack {
             Text("确认邀请付款").font(.system(size: 19, weight: .bold)).foregroundStyle(CoffeeLinkTheme.primaryText)
-            HStack { Button(action: onDismiss) { Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold)).foregroundStyle(CoffeeLinkTheme.primaryText).frame(width: 44, height: 44) }.buttonStyle(.plain); Spacer() }
+            HStack { Button(action: onDismiss) { Image(systemName: "chevron.left").font(.system(size: 17, weight: .semibold)).foregroundStyle(CoffeeLinkTheme.primaryText).frame(width: 44, height: 44) }.buttonStyle(.plain).accessibilityIdentifier("payment.back"); Spacer() }
         }.frame(height: 56).overlay(alignment: .bottom) { Divider().overlay(CoffeeLinkTheme.border) }
     }
 
@@ -105,14 +114,28 @@ struct BookingCheckoutView: View {
     }
 
     private func actionBar(_ session: ChatSession) -> some View {
-        HStack { VStack(alignment: .leading, spacing: 2) { Text("应付金额").font(.system(size: 11)).foregroundStyle(CoffeeLinkTheme.secondaryText); Text("¥\(decimalText(session.price ?? 0))").font(.system(size: 21, weight: .bold)).foregroundStyle(CoffeeLinkTheme.accent) }; Spacer(); CoffeePrimaryButton(title: result == .failure ? "重新支付" : "确认支付", accessibilityIdentifier: "payment.confirm") { pay(session) }.frame(width: 205) }.padding(.horizontal, 20).padding(.vertical, 10).background(CoffeeLinkTheme.background.opacity(0.98)).overlay(alignment: .top) { Divider().overlay(CoffeeLinkTheme.border) }
+        HStack { VStack(alignment: .leading, spacing: 2) { Text("应付金额").font(.system(size: 11)).foregroundStyle(CoffeeLinkTheme.secondaryText); Text("¥\(decimalText(session.price ?? 0))").font(.system(size: 21, weight: .bold)).foregroundStyle(CoffeeLinkTheme.accent) }; Spacer(); CoffeePrimaryButton(title: result == .success ? "查看对谈详情" : result == .failure ? "重新支付" : "确认支付", accessibilityIdentifier: result == .success ? "payment.view-session" : "payment.confirm") { if result == .success { onCompleted(session.id) } else { pay(session) } }.frame(width: 205) }.padding(.horizontal, 20).padding(.vertical, 10).background(CoffeeLinkTheme.background.opacity(0.98)).overlay(alignment: .top) { Divider().overlay(CoffeeLinkTheme.border) }
     }
 
     private func pay(_ session: ChatSession) {
-        let expected = forcedResult ?? .success
-        result = expected
-        guard expected == .success else { return }
-        store.completePayment(id: session.id, method: method)
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) { onCompleted(session.id) }
+        let requested = forcedResult ?? .success
+        guard requested == .success else {
+            result = requested
+            paymentError = nil
+            return
+        }
+        let didPersist = store.completePayment(id: session.id, method: method)
+        result = CheckoutPaymentResolution.result(for: requested, didPersist: didPersist)
+        guard didPersist else {
+            paymentError = store.lastErrorMessage ?? "支付信息保存失败，请稍后重试。"
+            return
+        }
+        paymentError = nil
+    }
+
+    private func presentForcedResultIfNeeded(_ session: ChatSession) {
+        guard let forcedResult else { return }
+        if forcedResult == .success { pay(session) }
+        else { result = forcedResult }
     }
 }

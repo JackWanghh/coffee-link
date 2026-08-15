@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		27FC313A67489FEE4DAF61A0 /* BusinessSheets.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9611B006AFC98241781ECD9D /* BusinessSheets.swift */; };
 		36C4DD37FEE50A972A7F741F /* DemoData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5581D5C281185BF2951608E7 /* DemoData.swift */; };
 		499467FBE776AE120AC33AD7 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C3D1F1BFF19CD31DA43B34 /* RootView.swift */; };
 		4BB70A2B3E41BF28C5E0337A /* DiscoverFilterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94AE0DFDEE41DAEEBCE3E7DC /* DiscoverFilterTests.swift */; };
@@ -23,6 +24,7 @@
 		9C8F870721DA6615BB1EC555 /* AppLaunchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1670A448DE84A5A4EACBF055 /* AppLaunchTests.swift */; };
 		A0008910211593EFF4EBF065 /* LocalPersistenceTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 02328F2C729766E481536E74 /* LocalPersistenceTests.swift */; };
 		AF06662C5BA24009D2763933 /* CreateInvitationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B2542CCB546F4709C64FC63A /* CreateInvitationView.swift */; };
+		AF70CA037BC37702CFE4BE5B /* ChatsListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CFBD8A4E6678D9FF9F9FC23C /* ChatsListView.swift */; };
 		B70E6456243D9F8BDF49CE34 /* CoffeeModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 395CFD9E09B606C3E0036A18 /* CoffeeModels.swift */; };
 		C38440596AA24C5CE6D32973 /* CoffeeLinkTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = 359E5F5EFE894D0220CE8D42 /* CoffeeLinkTheme.swift */; };
 		CEA8902BA63EE17CFEEA9AF3 /* SharerCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 982561A522B74BE525FD35AA /* SharerCard.swift */; };
@@ -33,6 +35,7 @@
 		F42788F3AEEB0860FF06341E /* BookingCheckoutView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 894E4E19151542F3F0D19B8E /* BookingCheckoutView.swift */; };
 		F6D3C3AAA8D5BEA23CED6C08 /* SessionModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D2D771F7F2A70C331F746A0 /* SessionModels.swift */; };
 		FB776B7970757AACE8E292F8 /* AppRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 877F8DBA980AB047F1CF4735 /* AppRoute.swift */; };
+		FD2A9D5736128D37535141A8 /* ChatDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A3B408D0B19C89BABD881122 /* ChatDetailView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -77,11 +80,14 @@
 		877F8DBA980AB047F1CF4735 /* AppRoute.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppRoute.swift; sourceTree = "<group>"; };
 		894E4E19151542F3F0D19B8E /* BookingCheckoutView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BookingCheckoutView.swift; sourceTree = "<group>"; };
 		94AE0DFDEE41DAEEBCE3E7DC /* DiscoverFilterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DiscoverFilterTests.swift; sourceTree = "<group>"; };
+		9611B006AFC98241781ECD9D /* BusinessSheets.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BusinessSheets.swift; sourceTree = "<group>"; };
 		982561A522B74BE525FD35AA /* SharerCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SharerCard.swift; sourceTree = "<group>"; };
 		99D318C91AA2A12E54ABDBFE /* CoffeeLinkTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CoffeeLinkTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A3B408D0B19C89BABD881122 /* ChatDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatDetailView.swift; sourceTree = "<group>"; };
 		B2542CCB546F4709C64FC63A /* CreateInvitationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CreateInvitationView.swift; sourceTree = "<group>"; };
 		B46685FAD6E10A5682A16795 /* CoffeeLinkForms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CoffeeLinkForms.swift; sourceTree = "<group>"; };
 		B5A69A4CB35FFB713274F178 /* CoffeeLink.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = CoffeeLink.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CFBD8A4E6678D9FF9F9FC23C /* ChatsListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ChatsListView.swift; sourceTree = "<group>"; };
 		DC542DA249B9E5E19ACED67F /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -92,6 +98,14 @@
 				19D16C58A53A2B5AC5430580 /* SharerDetailView.swift */,
 			);
 			path = SharerDetail;
+			sourceTree = "<group>";
+		};
+		0694CE95441D4E91265F61AF /* Modals */ = {
+			isa = PBXGroup;
+			children = (
+				9611B006AFC98241781ECD9D /* BusinessSheets.swift */,
+			);
+			path = Modals;
 			sourceTree = "<group>";
 		};
 		0BAC8BA06E6F4163A5A31F90 = {
@@ -132,12 +146,23 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		6277A903BF9EE58363603B5D /* Chats */ = {
+			isa = PBXGroup;
+			children = (
+				A3B408D0B19C89BABD881122 /* ChatDetailView.swift */,
+				CFBD8A4E6678D9FF9F9FC23C /* ChatsListView.swift */,
+			);
+			path = Chats;
+			sourceTree = "<group>";
+		};
 		6705911ECC3FDF8402947C07 /* Features */ = {
 			isa = PBXGroup;
 			children = (
 				C22321D85907BB6D887B709C /* Auth */,
+				6277A903BF9EE58363603B5D /* Chats */,
 				5180CAA0E60CD7B8B7E51C53 /* Discover */,
 				F9A585955B798C123D788CD4 /* Invitation */,
+				0694CE95441D4E91265F61AF /* Modals */,
 				0009B420262CB6AE2348A150 /* SharerDetail */,
 			);
 			path = Features;
@@ -366,6 +391,9 @@
 				6F4ED27151B4A4187FAD9A37 /* AppStore.swift in Sources */,
 				D71EDBFDF486DFBAFAF40237 /* AuthFlowView.swift in Sources */,
 				F42788F3AEEB0860FF06341E /* BookingCheckoutView.swift in Sources */,
+				27FC313A67489FEE4DAF61A0 /* BusinessSheets.swift in Sources */,
+				FD2A9D5736128D37535141A8 /* ChatDetailView.swift in Sources */,
+				AF70CA037BC37702CFE4BE5B /* ChatsListView.swift in Sources */,
 				6D12E02CD1981FE9DA27CA00 /* CoffeeLinkApp.swift in Sources */,
 				DCB994C7E147793CC670ABE4 /* CoffeeLinkComponents.swift in Sources */,
 				8F31B812A9F0364371E64AE4 /* CoffeeLinkForms.swift in Sources */,

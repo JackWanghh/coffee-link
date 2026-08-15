@@ -18,6 +18,14 @@ enum DemoData {
         drink("matcha-latte", "宇治抹茶拿铁", "Matcha Latte", 25, "🍵", "精研宇治抹茶配鲜奶，微苦清香，无咖啡因负担。", "茶咖风味")
     ]
 
+    static let incomingAvailableSlots: [AvailableSlot] = [
+        slot("slot-incoming-1", "10月25日 10:30 上午"),
+        slot("slot-incoming-2", "10月25日 03:30 下午"),
+        slot("slot-incoming-3", "10月26日 02:00 下午"),
+        slot("slot-incoming-swap-1", "10月26日 04:00 下午"),
+        slot("slot-incoming-swap-2", "10月27日 10:00 上午")
+    ]
+
     static let currentUser = UserProfile(
         id: "user-alex-chen",
         name: "Alex Chen",
@@ -42,7 +50,8 @@ enum DemoData {
         myThemes: [
             theme("ai-product-growth", "AI Native 产品经理转型与 Agent 落地实战", "从传统互联网 PM 转型为 AI Native PM 的思维转变与企业级 Agent 项目落地复盘。", ["能力模型拆解", "AI Agent 实际立项避坑", "提示词与工作流设计"], ["算法底层数学推导", "CUDA 硬件算子开发"]),
             theme("growth-flywheel", "早期数字产品敏捷迭代与用户增长飞轮", "如何用最小成本验证产品假设，打造首批百人种子用户与自传播裂变回路。", ["冷启动增长路径", "MVP 指标漏斗定义", "用户真实访谈方法"], ["保证具体的融资或商务对接"])
-        ]
+        ],
+        availableSlots: incomingAvailableSlots
     )
 
     static let sharers: [Sharer] = [
@@ -141,7 +150,7 @@ enum DemoData {
         meetingID: String, createdAt: String, paymentDeadline: String? = nil, paymentMethod: PaymentMethod? = nil,
         offeredTheme: (String, String, String?)? = nil, offering: String? = nil, receiverQuestion: String? = nil, review: SessionReview? = nil
     ) -> ChatSession {
-        ChatSession(id: id, type: type, orderNumber: orderNumber, senderID: sender.0, senderName: sender.1, senderTitle: sender.2, senderAvatarURL: url(sender.3), receiverID: receiver.id, receiverName: receiver.name, receiverTitle: "\(receiver.title) @ \(receiver.company)", receiverAvatarURL: receiver.avatarURL, themeID: theme.id, themeTitle: theme.title, themeDescription: themeDescription ?? theme.description, offeredThemeID: offeredTheme?.0, offeredThemeTitle: offeredTheme?.1, offeredThemeDescription: offeredTheme?.2, question: question, offering: offering, receiverQuestion: receiverQuestion, candidateSlots: slots, confirmedSlot: confirmedSlot, coffeeDrink: drink, price: price, paymentMethod: paymentMethod, paymentDeadline: paymentDeadline, status: status, statusLabel: statusLabel, declineReason: nil, meetingType: "腾讯会议", meetingID: meetingID, meetingLink: receiver.meetingLink, createdAt: createdAt, durationMinutes: 30, review: review, complaintReason: nil)
+        ChatSession(id: id, type: type, orderNumber: orderNumber, senderID: sender.0, senderName: sender.1, senderTitle: sender.2, senderAvatarURL: url(sender.3), receiverID: receiver.id, receiverName: receiver.name, receiverTitle: "\(receiver.title) @ \(receiver.company)", receiverAvatarURL: receiver.avatarURL, themeID: theme.id, themeTitle: theme.title, themeDescription: themeDescription ?? theme.description, offeredThemeID: offeredTheme?.0, offeredThemeTitle: offeredTheme?.1, offeredThemeDescription: offeredTheme?.2, question: question, offering: offering, receiverQuestion: receiverQuestion, candidateSlots: slots, confirmedSlotID: nil, confirmedSlot: confirmedSlot, coffeeDrink: drink, price: price, paymentMethod: paymentMethod, paymentDeadline: paymentDeadline, status: status, statusLabel: statusLabel, declineReason: nil, meetingType: "腾讯会议", meetingID: meetingID, meetingLink: receiver.meetingLink, createdAt: createdAt, durationMinutes: 30, review: review, complaintReason: nil)
     }
 
     private static func session(
@@ -151,6 +160,6 @@ enum DemoData {
         meetingID: String, createdAt: String, paymentDeadline: String? = nil, paymentMethod: PaymentMethod? = nil,
         offeredTheme: (String, String, String?)? = nil, offering: String? = nil, receiverQuestion: String? = nil, review: SessionReview? = nil
     ) -> ChatSession {
-        ChatSession(id: id, type: type, orderNumber: orderNumber, senderID: sender.id, senderName: sender.name, senderTitle: "\(sender.title) @ \(sender.company)", senderAvatarURL: sender.avatarURL, receiverID: receiver.id, receiverName: receiver.name, receiverTitle: "\(receiver.title) @ \(receiver.company)", receiverAvatarURL: receiver.avatarURL, themeID: theme.id, themeTitle: theme.title, themeDescription: theme.description, offeredThemeID: offeredTheme?.0, offeredThemeTitle: offeredTheme?.1, offeredThemeDescription: offeredTheme?.2, question: question, offering: offering, receiverQuestion: receiverQuestion, candidateSlots: slots, confirmedSlot: confirmedSlot, coffeeDrink: drink, price: price, paymentMethod: paymentMethod, paymentDeadline: paymentDeadline, status: status, statusLabel: statusLabel, declineReason: nil, meetingType: "腾讯会议", meetingID: meetingID, meetingLink: receiver.meetingLink, createdAt: createdAt, durationMinutes: 30, review: review, complaintReason: nil)
+        ChatSession(id: id, type: type, orderNumber: orderNumber, senderID: sender.id, senderName: sender.name, senderTitle: "\(sender.title) @ \(sender.company)", senderAvatarURL: sender.avatarURL, receiverID: receiver.id, receiverName: receiver.name, receiverTitle: "\(receiver.title) @ \(receiver.company)", receiverAvatarURL: receiver.avatarURL, themeID: theme.id, themeTitle: theme.title, themeDescription: theme.description, offeredThemeID: offeredTheme?.0, offeredThemeTitle: offeredTheme?.1, offeredThemeDescription: offeredTheme?.2, question: question, offering: offering, receiverQuestion: receiverQuestion, candidateSlots: slots, confirmedSlotID: nil, confirmedSlot: confirmedSlot, coffeeDrink: drink, price: price, paymentMethod: paymentMethod, paymentDeadline: paymentDeadline, status: status, statusLabel: statusLabel, declineReason: nil, meetingType: "腾讯会议", meetingID: meetingID, meetingLink: receiver.meetingLink, createdAt: createdAt, durationMinutes: 30, review: review, complaintReason: nil)
     }
 }

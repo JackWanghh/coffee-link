@@ -73,7 +73,11 @@ struct CoffeeAvatar: View {
     var body: some View {
         ZStack {
             Circle().fill(CoffeeLinkTheme.elevatedSurface)
-            if let imageURL {
+            if let localAvatarAssetName {
+                Image(localAvatarAssetName)
+                    .resizable()
+                    .scaledToFill()
+            } else if let imageURL {
                 AsyncImage(url: imageURL) { image in
                     image.resizable().scaledToFill()
                 } placeholder: {
@@ -92,6 +96,16 @@ struct CoffeeAvatar: View {
         Text(String(name.prefix(2)).uppercased())
             .font(.system(size: size * 0.32, weight: .bold, design: .rounded))
             .foregroundStyle(CoffeeLinkTheme.primaryText)
+    }
+
+    private var localAvatarAssetName: String? {
+        let normalizedName = name.lowercased()
+        if normalizedName.contains("elena") { return "Elena" }
+        if normalizedName.contains("david") { return "David" }
+        if normalizedName.contains("sophia") { return "Mia" }
+        if normalizedName.contains("leo") { return "Leo" }
+        if normalizedName.contains("alex") { return "Alex" }
+        return nil
     }
 }
 
