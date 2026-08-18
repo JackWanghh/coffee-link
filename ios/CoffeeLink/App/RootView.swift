@@ -38,6 +38,9 @@ struct RootView: View {
         persistenceMode = usesPersistentUITesting ? "ui-testing-persistent" : usesIsolatedPersistence ? "ui-testing-isolated" : "live"
         let credentialPersistence: CredentialPersistence = usesPersistentUITesting ? .uiTesting() : usesIsolatedPersistence ? .inMemory() : .live
         credentialMode = credentialPersistence.scope.rawValue
+        let remote = Self.launchValue(arguments: arguments, flag: "-remote-api")
+            .flatMap { URL(string: $0) }
+            .map { APIRepository(client: APIClient(baseURL: $0)) }
         var snapshot = AppSnapshot.demo
         let requestedScreen = Self.presentedScreen(for: requestedVisualScreen)
             ?? Self.launchValue(arguments: arguments, flag: "-present")
@@ -47,7 +50,7 @@ struct RootView: View {
             snapshot.currentUser.appearanceThemeID = appearance
         }
         if arguments.contains("-logged-out") || requestedScreen == "invite" { snapshot.currentUser.isLoggedIn = false }
-        _store = State(initialValue: AppStore(snapshot: snapshot, persistence: persistence, credentialPersistence: credentialPersistence))
+        _store = State(initialValue: AppStore(snapshot: snapshot, persistence: persistence, credentialPersistence: credentialPersistence, remote: remote))
         let chatsScreens = ["chats", "accept", "decline", "meeting", "review", "complaint"]
         let mineScreens = ["profile", "sharing-center", "profile-preview", "edit-profile", "themes", "drink", "topic-swap", "appearance", "slots", "meeting-link"]
         _selectedTab = State(initialValue: chatsScreens.contains(requestedScreen ?? "") || requestedVisualScreen == "chat-detail-booked" ? .chats : mineScreens.contains(requestedScreen ?? "") ? .mine : .discover)
@@ -149,6 +152,10 @@ struct RootView: View {
             if newTab != .chats { chatsStartIncomingPending = false }
         }
         .preferredColorScheme(store.snapshot.currentUser.appearanceThemeID.isLight ? .light : .dark)
+        .task {
+            let appStore = store
+            await appStore.bootstrapRemote()
+        }
     }
 
     @ViewBuilder

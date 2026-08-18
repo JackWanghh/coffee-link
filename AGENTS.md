@@ -1,5 +1,7 @@
 # CoffeeLink - 主 Agent 协调规范
 
+> 适用范围：本规范约束**主 Agent** 的协调职责、质量门禁与编码规范。子 Agent（Planner / Frontend / Backend / Reviewer）的实际角色、边界与输出要求以 `agents/*.toml` 为准；子 Agent 收到任务时不得将自己代入主 Agent 角色。
+
 ## 1. 任务分发原则
 
 - Frontend 角色 = **iOS 客户端工程师**（目录 `/ios`，Swift 6 + SwiftUI）：涉及 `/ios` 代码改动必须 spawn Frontend 子 Agent，主 Agent 不得直接修改

@@ -27,15 +27,18 @@ final class AppStore {
     var lastErrorMessage: String?
     private let persistence: LocalPersistence
     private let credentialPersistence: CredentialPersistence
+    private var remote: APIRepository?
     private var credentialPassword: String?
 
     init(
         snapshot: AppSnapshot = .demo,
         persistence: LocalPersistence = .live,
-        credentialPersistence: CredentialPersistence = .live
+        credentialPersistence: CredentialPersistence = .live,
+        remote: APIRepository? = nil
     ) {
         self.persistence = persistence
         self.credentialPersistence = credentialPersistence
+        self.remote = remote
         do {
             self.snapshot = Self.normalizeLoadedSnapshot(try persistence.load() ?? snapshot)
             self.lastErrorMessage = nil
@@ -50,6 +53,22 @@ final class AppStore {
             self.lastErrorMessage = "凭据读取失败，请稍后重试"
         }
         CoffeeLinkTheme.activate(self.snapshot.currentUser.appearanceThemeID)
+    }
+
+    func bootstrapRemote() async {
+        guard var remote else { return }
+        do {
+            if remote.client.accessToken == nil {
+                try await remote.login(phone: "13800000001", password: "Pass123456")
+            }
+            let remoteSnapshot = try await remote.bootstrap()
+            self.remote = remote
+            snapshot = remoteSnapshot
+            snapshot.currentUser.isLoggedIn = true
+            lastErrorMessage = nil
+        } catch {
+            lastErrorMessage = "后端连接失败：\((error as? LocalizedError)?.errorDescription ?? "请检查服务")"
+        }
     }
 
     func session(id: String) -> ChatSession? {
@@ -114,6 +133,7 @@ final class AppStore {
             snapshot = previousSnapshot
             throw AppStoreError.persistenceFailed
         }
+        Task { try? await remote?.createCoffee(sharerId: sharerID, themeId: themeID, question: question, slotIds: slotIDs) }
         return id
     }
 
@@ -179,6 +199,7 @@ final class AppStore {
             snapshot = previousSnapshot
             throw AppStoreError.persistenceFailed
         }
+        Task { try? await remote?.createSwap(sharerId: sharerID, requestedThemeId: requestedThemeID, offeredThemeId: offeredThemeID, question: question, offering: offering, slotIds: slotIDs) }
         return id
     }
 
@@ -197,7 +218,7 @@ final class AppStore {
             lastErrorMessage = "主题互换请补充不少于 8 个字的问题"
             return false
         }
-        return updateSession(id: id) { snapshot, index in
+        let didUpdate = updateSession(id: id) { snapshot, index in
             snapshot.sessions[index].confirmedSlotID = confirmedSlot.id
             snapshot.sessions[index].confirmedSlot = confirmedSlot.label
             snapshot.sessions[index].receiverQuestion = trimmedQuestion?.isEmpty == false ? trimmedQuestion : nil
@@ -205,6 +226,10 @@ final class AppStore {
             snapshot.sessions[index].statusLabel = snapshot.sessions[index].type == .coffee ? "待付款" : "已排期"
             reserveSlot(receiverID: existing.receiverID, id: confirmedSlot.id, snapshot: &snapshot)
         }
+        if didUpdate {
+            Task { try? await remote?.accept(sessionId: id, confirmedSlotId: confirmedSlotID, receiverQuestion: receiverQuestion) }
+        }
+        return didUpdate
     }
 
     @discardableResult
@@ -214,11 +239,15 @@ final class AppStore {
             lastErrorMessage = "请选择婉拒原因"
             return false
         }
-        return updateSession(id: id) { snapshot, index in
+        let didUpdate = updateSession(id: id) { snapshot, index in
             snapshot.sessions[index].status = .declined
             snapshot.sessions[index].statusLabel = "已婉拒"
             snapshot.sessions[index].declineReason = trimmedReason
         }
+        if didUpdate {
+            Task { try? await remote?.decline(sessionId: id, reason: trimmedReason) }
+        }
+        return didUpdate
     }
 
     @discardableResult
@@ -227,12 +256,16 @@ final class AppStore {
             lastErrorMessage = AppStoreError.invalidSessionState.localizedDescription
             return false
         }
-        return updateSession(id: id) { snapshot, index in
+        let didUpdate = updateSession(id: id) { snapshot, index in
             snapshot.sessions[index].paymentMethod = method
             snapshot.sessions[index].paymentDeadline = nil
             snapshot.sessions[index].status = .booked
             snapshot.sessions[index].statusLabel = "已预约"
         }
+        if didUpdate {
+            Task { try? await remote?.pay(sessionId: id) }
+        }
+        return didUpdate
     }
 
     @discardableResult
@@ -241,10 +274,14 @@ final class AppStore {
             lastErrorMessage = AppStoreError.invalidSessionState.localizedDescription
             return false
         }
-        return updateSession(id: id) { snapshot, index in
+        let didUpdate = updateSession(id: id) { snapshot, index in
             snapshot.sessions[index].status = .cancelled
             snapshot.sessions[index].statusLabel = "已取消"
         }
+        if didUpdate {
+            Task { try? await remote?.cancel(sessionId: id) }
+        }
+        return didUpdate
     }
 
     @discardableResult
@@ -253,9 +290,13 @@ final class AppStore {
             lastErrorMessage = "请完成 1 至 5 星评价"
             return false
         }
-        return updateSession(id: id) { snapshot, index in
+        let didUpdate = updateSession(id: id) { snapshot, index in
             snapshot.sessions[index].review = SessionReview(rating: rating, comment: comment.trimmingCharacters(in: .whitespacesAndNewlines), tag: tag, createdAt: "刚刚")
         }
+        if didUpdate {
+            Task { try? await remote?.review(sessionId: id, rating: rating, comment: comment.trimmingCharacters(in: .whitespacesAndNewlines), tag: tag) }
+        }
+        return didUpdate
     }
 
     @discardableResult
@@ -274,16 +315,24 @@ final class AppStore {
             lastErrorMessage = AppStoreError.invalidSessionState.localizedDescription
             return false
         }
-        return updateSession(id: id) { snapshot, index in
+        let didUpdate = updateSession(id: id) { snapshot, index in
             snapshot.sessions[index].complaintReason = "\(trimmedCategory)：\(trimmedDescription)"
             snapshot.sessions[index].status = .inAfterSale
             snapshot.sessions[index].statusLabel = "售后中"
         }
+        if didUpdate {
+            Task { try? await remote?.complaint(sessionId: id, category: trimmedCategory, description: trimmedDescription) }
+        }
+        return didUpdate
     }
 
     @discardableResult
     func updateProfile(_ profile: UserProfile) -> Bool {
-        updateCurrentUser { $0 = profile }
+        let didSave = updateCurrentUser { $0 = profile }
+        if didSave {
+            Task { try? await remote?.updateProfile(name: profile.name, title: profile.title, company: profile.company) }
+        }
+        return didSave
     }
 
     @discardableResult

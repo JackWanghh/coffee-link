@@ -21,6 +21,7 @@ targets:
         INFOPLIST_KEY_UIApplicationSceneManifest_Generation: true
         INFOPLIST_KEY_UILaunchScreen_Generation: true
         INFOPLIST_KEY_UIUserInterfaceStyle: Dark
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsLocalNetworking: YES
   CoffeeLinkTests:
     type: bundle.unit-test
     platform: iOS

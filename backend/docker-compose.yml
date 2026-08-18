@@ -1,0 +1,34 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: coffeelink-postgres
+    environment:
+      POSTGRES_USER: coffeelink
+      POSTGRES_PASSWORD: coffeelink_dev
+      POSTGRES_DB: coffeelink
+    ports:
+      - "5433:5432"
+    volumes:
+      - coffeelink_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U coffeelink -d coffeelink"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7
+    container_name: coffeelink-redis
+    ports:
+      - "6380:6379"
+    volumes:
+      - coffeelink_redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  coffeelink_pgdata:
+  coffeelink_redisdata:

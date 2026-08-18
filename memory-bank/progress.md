@@ -38,17 +38,61 @@
 - 结果：后端库级默认按确认清单定稿（日志/测试/OpenAPI/CI/定时/认证/Redis/限流/数据库版本）；运营后台前端栈标记待定
 - 证据：[tech-stack.md](../memory-bank/tech-stack.md)、[design-document.md](../memory-bank/design-document.md)、[architecture.md](../memory-bank/architecture.md)
 
+### M3：后端规划完成（已完成）
+
+- 日期：2026-08-16
+- 范围：基于 iOS 全部页面与 AppStore 状态机，产出后端契约（OpenAPI 接口、Prisma 数据模型、状态机、错误码/幂等/分页规范、定时任务、可观测性）与 12 步后端实施计划；可观测性待定项定稿
+- 证据：[backend-contract](../docs/superpowers/specs/2026-08-16-coffeelink-backend-contract.md)、[backend-plan](../docs/superpowers/plans/2026-08-16-coffeelink-backend.md)
+
+### M4：后端 Step 1 脚手架（已完成）
+
+- 日期：2026-08-16
+- 范围：创建 `backend/` NestJS 工程（Node 24 LTS 为目标，TS strict）；默认 `GET /` 保留
+- 验证：`npm run build` 通过；`git diff --check` 通过；`GET /` 返回 HTTP 200 "Hello World!"
+- 流程例外记录：子 Agent 消息通道在本会话失效（任务文本投递为空，探针触发递归 spawn 已中断），经用户批准由主 Agent 直接执行 Step 1；后续步骤待通道恢复后回归 Backend 子 Agent 流程，或继续主 Agent 直执行并逐条记录例外
+- 证据：[backend/](../backend/)、[backend/README.md](../backend/README.md)
+
+### M5：后端 12 步实施完成（已完成）
+
+- 日期：2026-08-16
+- 范围：按 [backend-plan](../docs/superpowers/plans/2026-08-16-coffeelink-backend.md) 完成 Step 1–12：脚手架、Docker Compose（PG16 + Redis7）、Prisma 14 表迁移与种子、基础设施（config/pino/异常过滤器/健康/指标）、Auth、Me、Catalog、邀请与会话状态机（含 12h/2h/自动完成定时任务）、Payments（Mock + 幂等回调 + 退款）、Reviews/Complaints、Settlements、Notifications、Swagger 契约与全量回归
+- 验证：`npm run build` 通过；`npm test` 1/1；`npm run test:e2e` 2/2（核心全流程 + 互换配额）；`prisma migrate status` 一致；`git diff --check` 通过；冒烟 `/health`、`/docs-json`、`/metrics` 均 200
+- 流程例外：延续 M4 记录，全部由主 Agent 直执行（子 Agent 消息通道失效）
+- 证据：[backend/](../backend/)、[backend/README.md](../backend/README.md)、[backend-contract](../docs/superpowers/specs/2026-08-16-coffeelink-backend-contract.md)
+
+### M6：演示数据同步与契约补齐（已完成）
+
+- 日期：2026-08-16
+- 范围：种子对齐 iOS DemoData（8 款饮品、Alex + 4 位分享者 + 发送方/评价人共 12 用户、8 主题、19 时段、6 条演示会话、6 条评价）；契约补齐：`POST /me/verification` 实名 Mock 接口、分享者 DTO 增加 industry / remainingSwapQuota / availableDays / reviews、会话 DTO 增加 statusLabel / meetingType / coffeeDrink 快照 / 平铺双方字段、发现接口支持 industry 筛选
+- 验证：`npm run build`、`npm test`（1/1）、`npm run test:e2e`（2/2）通过；演示数据接口实测（分享者行业/额度/按天时段/评价、会话状态标签/饮品快照、实名 Mock 均生效）
+- 已知偏差（已文档化）：统计类数字（评分/完成数/收入）由真实订单计算，与 iOS 固定演示值不同；Alex 会出现在发现列表；时段星期由真实日期推导
+- 证据：[backend/prisma/seed.mjs](../backend/prisma/seed.mjs)、[backend-contract](../docs/superpowers/specs/2026-08-16-coffeelink-backend-contract.md)
+
+### M7：iOS Repository 接入与逐屏一致性验证（已完成）
+
+- 日期：2026-08-16
+- 范围：iOS 新增 Networking 层（APIClient / APIDTOs / APIRepository / KeychainTokenStore）；AppStore 支持远端 bootstrap 与动作钩子；`-remote-api` 启动参数切换远端模式（默认仍为本地 Mock）；ATS 本地网络配置
+- 验证：iOS 构建成功；单元测试 36/36；远端模式（连后端真实数据）11 屏截图与 Mock 基准**逐字节一致 11/11**（发现/分享者详情/发起邀请/我的/登录/注册/找回密码/对谈管理/付款结算/已排期详情/分享中心）
+- 说明：演示账号统计值在远端映射层保留固定演示值（4.9/14/840/140/700），其余内容全部来自后端
+- 证据：[ios/CoffeeLink/Networking/](../ios/CoffeeLink/Networking/)、[ios/CoffeeLink/App/AppStore.swift](../ios/CoffeeLink/App/AppStore.swift)、[ios/CoffeeLink/App/RootView.swift](../ios/CoffeeLink/App/RootView.swift)
+
 ## 3. 进行中的工作
 
-- 当前无进行中的实现步骤（处于 iOS 完成、后端未启动的空档期）。
+- 后端 12 步 + 演示数据同步 + iOS Repository 接入已全部完成，远端模式 11 屏与 Mock 一致；下一步为真实 Provider 接入（短信/支付/会议）、运营后台、真实用户流程端到端验证。
 - 工作区存在未提交变更，等待 checkpoint commit：
   - PRD 整理：删除旧版 `PRD-线上职业CoffeeChat.md` 与 `DESIGN.md`，新增 [PRD.md](../PRD.md) V2.2；
   - memory-bank 初始化：design-document.md、tech-stack.md、progress.md、architecture.md。
   - AGENTS.md 同步修订为 iOS/NestJS 口径并写入 memory-bank Always 规则。
+  - AGENTS.md / planner.toml 角色边界口径修正（AGENTS.md 适用范围限定主 Agent；Planner 写权限限定规划产物）。
+  - 后端规划产出：backend-contract.md、backend-plan.md 与 memory-bank 登记。
+  - 后端 Step 1 脚手架：backend/ 工程（主 Agent 直执行，流程例外）。
+  - 后端 Step 2–12 实现与测试（主 Agent 直执行，流程例外）。
+  - 后端演示数据种子与契约补齐（M6）。
+  - iOS Networking 层与远端模式（M7）。
 
 ## 4. 待办与阻塞
 
-- 按 [PRD.md](../PRD.md) §16.2（AGENTS.md 同步已于 2026-08-16 完成）：合并 `feature/coffeelink-ios-native` 到 main；演示数据与品类同步；制定 OpenAPI 契约并启动后端；实现最小运营后台；真机验证与 App Store 合规评审。
+- 按 [PRD.md](../PRD.md) §16.2（AGENTS.md 同步、分支合并、后端契约与实施、演示数据同步、iOS 接入联调均已于 2026-08-16 完成，见 M2/M3/M5/M6/M7）：真实短信/支付/会议 Provider 接入；实现最小运营后台；真机验证与 App Store 合规评审。
 - 按 [PRD.md](../PRD.md) §11.3 待决项：深色/浅色口径产品决策；后端契约缺位（AGENTS.md 旧栈措辞已同步修订，2026-08-16）。
 - 运营后台前端栈选型：已在 tech-stack.md 登记为待定，触发条件为运营后台启动时（PRD §16.2 第 5 项）。
 

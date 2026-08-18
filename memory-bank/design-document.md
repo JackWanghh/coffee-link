@@ -31,6 +31,8 @@
 | iOS 原生实现设计 | [2026-08-14-coffeelink-ios-native-design.md](../docs/superpowers/specs/2026-08-14-coffeelink-ios-native-design.md) | 目标与交付范围、核心页面、认证流程、业务弹层、可交互状态、非目标、实现路径、工程结构、导航设计、状态与数据流、视觉复刻规则、表单与错误处理、测试策略、验收标准、风险与控制、完成定义 |
 | iOS 实施计划 | [2026-08-14-coffeelink-ios-native.md](../docs/superpowers/plans/2026-08-14-coffeelink-ios-native.md) | 9 个任务（脚手架 → 模型 → 导航 → 页面 → 流程 → 视觉回归 → 终验），每步含验证方法、无代码 |
 | iOS 执行记录与进度 | [.superpowers/sdd/2026-08-14-coffeelink-ios-native/](../.superpowers/sdd/2026-08-14-coffeelink-ios-native/) | progress.md 账本 + task 报告（TDD 证据、review 修复轮次） |
+| 后端契约（唯一实现依据） | [2026-08-16-coffeelink-backend-contract.md](../docs/superpowers/specs/2026-08-16-coffeelink-backend-contract.md) | 目标范围、页面→API 映射、状态机、Prisma 数据模型、OpenAPI 接口清单、错误码/幂等/分页规范、定时任务、可观测性、测试验收 |
+| 后端实施计划 | [2026-08-16-coffeelink-backend.md](../docs/superpowers/plans/2026-08-16-coffeelink-backend.md) | 12 步实施计划（脚手架 → Auth → Me → 发现 → 邀请状态机 → 支付 → 评价投诉 → 结算通知 → 契约核对），每步带验收 |
 | 项目执行进度总账 | [memory-bank/progress.md](./progress.md) | 各端状态总览、里程碑历史、进行中工作、待办与阻塞（只引用细节，不复制正文） |
 | 实现结构地图 | [memory-bank/architecture.md](./architecture.md) | 重要文件/目录职责、关键数据流与状态源、关键约定、规划中的结构、变更记录 |
 | iOS 操作与验收证据 | [ios/README.md](../ios/README.md)、[ios/VisualTests/REPORT.md](../ios/VisualTests/REPORT.md) | 环境、构建、测试、Mock 账号、重置机制、验收矩阵与平台差异 |
@@ -42,7 +44,7 @@
 
 - **Web 原型（coffeelink）**：视觉与交互基准，已完成全部核心页面与弹层，含 iOS 适配审计。
 - **iOS 原生（ios）**：设计规格与 9 任务实施计划已定稿，74/74 测试通过、11 屏视觉基线收敛。
-- **后端（NestJS）**：PRD §14 为架构约束，OpenAPI 契约、PostgreSQL 数据模型、状态机与任务拆解**待 Planner 产出**；产出后在本节登记文件路径。
+- **后端（NestJS）**：契约与实施计划已产出（[backend-contract](../docs/superpowers/specs/2026-08-16-coffeelink-backend-contract.md)、[backend-plan](../docs/superpowers/plans/2026-08-16-coffeelink-backend.md)），实现代码位于 [backend/](../backend/)（见 architecture.md §2），12 步已全部完成并自测通过。
 - **运营后台**：范围限定为 PRD §10、§14.2 三模块，未启动；启动时同样以本文索引为准。
 
 ## 4. 已知不一致与待决项
@@ -51,7 +53,7 @@
 | --- | --- | --- |
 | AGENTS.md 已同步为 iOS/NestJS 口径并写入 memory-bank Always 规则 | 已完成（2026-08-16） | PRD §11.3、§15 |
 | 深色 vs 浅色口径：PRD §4.2 历史表述与实现（深色 + 6 套外观）不一致 | 待产品决策 | PRD §11.3 |
-| 后端设计契约（OpenAPI / 数据模型 / 状态机）缺位 | 待 Planner 产出 | PRD §14、§16.2 |
+| 后端设计契约已产出（backend-contract.md + backend-plan.md） | 已完成（2026-08-16），待 Backend 子 Agent 实施 | PRD §14、§16.2 |
 | Web→Native 视觉差异 ratio 0.29–0.47 为诊断值，非通过阈值 | 持续监控 | PRD §13.3 |
 
 ## 5. 维护规则

@@ -77,12 +77,13 @@
 | 待定项 | 说明 | 触发条件 |
 | --- | --- | --- |
 | 运营后台前端栈 | 用户与内容 / 邀请对谈与资金 / 数据概览三模块 | 运营后台启动选型后回填（PRD §16.2 第 5 项） |
-| 后端可观测性细节 | metrics/APM、日志采集与告警落地方案 | Planner 输出后端规划时回填 |
+| 后端可观测性细节 | **已定稿**：@nestjs/terminus 健康检查 + pino 结构化日志（reqId、错误码）+ prom-client `/metrics`；APM 接入真实短信/支付后评估腾讯云 APM（P1） | 已定稿（2026-08-16，见 backend-contract §9） |
 
 ## 5. 变更记录
 
 - 2026-08-16（V1.0）：建立本文；后端库级默认按确认清单定稿（日志 pino、测试 Jest+Supertest、OpenAPI @nestjs/swagger、CI GitHub Actions、定时 @nestjs/schedule、认证 JWT+argon2、Redis 客户端 ioredis、限流 @nestjs/throttler、PG16 + Redis7）；运营后台前端栈标记待定。
 - 2026-08-16：补充"前后端分离架构（全局约束）"小节，明确客户端/后端/运营后台的分离形态、契约先行与目录边界。
+- 2026-08-16：后端可观测性待定项定稿（健康检查 + pino reqId 日志 + prom-client 指标；APM 列 P1）。
 
 ## 6. 维护规则
 

@@ -12,6 +12,7 @@
 | [PRD.md](../PRD.md) | 唯一权威产品与设计文档（V2.2，自包含） |
 | [AGENTS.md](../AGENTS.md) | 协作规范与质量门禁（iOS/NestJS 口径 + memory-bank Always 规则） |
 | [config.toml](../config.toml) | Codex 运行配置：审批策略、沙箱模式、推理强度 |
+| [backend/](../backend/) | NestJS 后端工程（Step 1 脚手架已建，业务模块按 backend-plan 逐步实现） |
 | [coffeelink/](../coffeelink/) | Web 视觉与交互原型（React + Vite），非正式客户端 |
 | [ios/](../ios/) | iOS 原生 App（Swift 6 + SwiftUI） |
 | [docs/superpowers/](../docs/superpowers/) | 设计规格与实施计划 |
@@ -29,6 +30,7 @@
 | [ios/CoffeeLink/App/](../ios/CoffeeLink/App/) | 入口、路由、AppStore（唯一状态源） |
 | [ios/CoffeeLink/Models/](../ios/CoffeeLink/Models/) | 领域模型 |
 | [ios/CoffeeLink/Data/](../ios/CoffeeLink/Data/) | 确定性 Mock 数据与本地持久化（JSON 快照 + Keychain 凭据） |
+| [ios/CoffeeLink/Networking/](../ios/CoffeeLink/Networking/) | 远端模式：APIClient、API DTO、APIRepository（DTO→领域映射）、Keychain 令牌存储 |
 | [ios/CoffeeLink/DesignSystem/](../ios/CoffeeLink/DesignSystem/) | 主题、组件、表单、Tab Bar |
 | [ios/CoffeeLink/Features/](../ios/CoffeeLink/Features/) | 发现、分享者详情、邀请、付款、对谈、我的、分享中心、认证 |
 | [ios/CoffeeLink/Resources/](../ios/CoffeeLink/Resources/) | 图标与本地头像 |
@@ -36,6 +38,24 @@
 | [ios/CoffeeLinkUITests/](../ios/CoffeeLinkUITests/) | UI 测试（38 个，含 11 个视觉基线） |
 | [ios/VisualTests/](../ios/VisualTests/) | 参考图、截图、compare.swift、验收报告 |
 | [ios/project.yml](../ios/project.yml) | XcodeGen 工程定义（唯一真相）；`CoffeeLink.xcodeproj` 为生成产物 |
+
+### backend/（NestJS 后端）
+
+| 路径 | 职责 |
+| --- | --- |
+| [backend/src/app.module.ts](../backend/src/app.module.ts) | 模块组装、全局过滤器/守卫/校验 |
+| [backend/src/common/](../backend/src/common/) | 错误码、分页、异常过滤器、JWT 守卫、当前用户装饰器 |
+| [backend/src/auth/](../backend/src/auth/) | 短信 Mock、注册/登录/刷新/重置、JWT + refresh 轮换 |
+| [backend/src/me/](../backend/src/me/) | 资料/主题/签名饮品/时段/互换设置/会议链接/分享开关/设置/收入摘要 |
+| [backend/src/catalog/](../backend/src/catalog/) | 品类、饮品目录、分享者列表与详情（评分聚合） |
+| [backend/src/sessions/](../backend/src/sessions/) | 电子咖啡/互换邀请、会话状态机、12h/2h/自动完成定时任务 |
+| [backend/src/payments/](../backend/src/payments/) | 支付 Provider 抽象（Mock 先行）、幂等回调、退款 |
+| [backend/src/reviews/](../backend/src/reviews/) | 评价（含互换双盲）、投诉、运营处理接口 |
+| [backend/src/settlements/](../backend/src/settlements/) | 每周结算（15/85 分成） |
+| [backend/src/notifications/](../backend/src/notifications/) | 通知落库 + Push Provider（Mock） |
+| [backend/src/health/](../backend/src/health/) | /health（terminus）与 /metrics（prom-client） |
+| [backend/prisma/](../backend/prisma/) | Schema（14 表）、迁移、种子（6 品类 + 8 饮品） |
+| [backend/docker-compose.yml](../backend/docker-compose.yml) | 本地 PostgreSQL 16（5433）+ Redis 7（6380） |
 
 ### coffeelink/（Web 原型）
 
@@ -83,9 +103,10 @@
 - 中文：所有源码使用实际 UTF-8 中文字符，禁止 `\uXXXX` 转义，文件无 BOM。
 - 演示账号：`13800138000` / `Pass123456`，注册验证码 `123456`（仅本地演示与自动化测试）。
 
-## 5. 规划中的结构（尚未创建）
+## 5. 规划中的结构
 
-- **backend/**：NestJS 模块化单体 + PostgreSQL/Prisma + Redis；模块清单与约束见 [PRD.md](../PRD.md) §14、[agents/backend.toml](../agents/backend.toml)。
+- **backend/**：已实现（见 §2 backend/ 职责地图）；剩余为真实 Provider 接入与部署配置（CloudBase 云托管、GitHub Actions）。
+
 - **运营后台**：用户与内容、邀请/对谈与资金、数据概览三模块（[PRD.md](../PRD.md) §10 / §14.2）。
 - 上述目录实际创建后，从本节移入 §2 并追加变更记录。
 

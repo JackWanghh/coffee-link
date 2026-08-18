@@ -1,0 +1,318 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum SessionType {
+  coffee
+  topicSwap
+}
+
+enum SessionStatus {
+  pendingResponse
+  needsNewTime
+  acceptedPendingPayment
+  swapScheduled
+  declined
+  expired
+  booked
+  completed
+  inAfterSale
+  refunding
+  cancelled
+}
+
+enum PaymentMethod {
+  wechat
+  alipay
+}
+
+enum PaymentStatus {
+  pending
+  success
+  failed
+  refunded
+}
+
+enum ComplaintStatus {
+  open
+  resolved
+  refunded
+}
+
+enum CredentialStatus {
+  declared
+  verified
+}
+
+model User {
+  id                  String    @id @default(uuid()) @db.Uuid
+  phone               String    @unique
+  passwordHash        String
+  name                String    @default("")
+  title               String    @default("")
+  company             String    @default("")
+  industry            String?
+  avatarUrl           String?
+  isVerified          Boolean   @default(false)
+  declarationNote     String    @default("职业信息由用户自行填写，平台未核验")
+  highlights          String[]  @default([])
+  isSharingOpen       Boolean   @default(false)
+  signatureDrinkId    String?   @db.Uuid
+  acceptsTopicSwap    Boolean   @default(false)
+  weeklySwapLimit     Int       @default(3)
+  appearanceThemeId   String    @default("obsidian")
+  autoCalendarSync    Boolean   @default(true)
+  defaultMeetingReady Boolean   @default(true)
+  hapticsEnabled      Boolean   @default(true)
+  meetingLink         String?
+  createdAt           DateTime  @default(now()) @db.Timestamptz
+  updatedAt           DateTime  @updatedAt @db.Timestamptz
+  deletedAt           DateTime? @db.Timestamptz
+
+  signatureDrink   CoffeeDrink?    @relation(fields: [signatureDrinkId], references: [id])
+  refreshTokens    RefreshToken[]
+  themes           Theme[]
+  credentials      Credential[]
+  slots            Slot[]
+  sentSessions     Session[]       @relation("SenderSessions")
+  receivedSessions Session[]       @relation("ReceiverSessions")
+  reviewsWritten   Review[]        @relation("ReviewerReviews")
+  reviewsReceived  Review[]        @relation("RevieweeReviews")
+  complaints       Complaint[]
+  settlements      Settlement[]
+  notifications    Notification[]
+
+  @@index([isSharingOpen])
+  @@index([deletedAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  tokenHash String    @unique
+  expiresAt DateTime  @db.Timestamptz
+  revokedAt DateTime? @db.Timestamptz
+  createdAt DateTime  @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model SmsCode {
+  id        String   @id @default(uuid()) @db.Uuid
+  phone     String
+  purpose   String
+  codeHash  String
+  expiresAt DateTime @db.Timestamptz
+  attempts  Int      @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz
+
+  @@index([phone, createdAt])
+}
+
+model Category {
+  id           String   @id @default(uuid()) @db.Uuid
+  code         String   @unique
+  name         String
+  isRestricted Boolean  @default(false)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now()) @db.Timestamptz
+
+  themes Theme[]
+}
+
+model CoffeeDrink {
+  id          String   @id @default(uuid()) @db.Uuid
+  code        String   @unique
+  name        String
+  nameEn      String
+  priceCents  Int
+  icon        String   @default("cup.and.saucer")
+  description String
+  tag         String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  users User[]
+}
+
+model Theme {
+  id              String   @id @default(uuid()) @db.Uuid
+  userId          String   @db.Uuid
+  categoryId      String   @db.Uuid
+  title           String
+  description     String
+  durationMinutes Int      @default(30)
+  includes        String[] @default([])
+  excludes        String[] @default([])
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now()) @db.Timestamptz
+  updatedAt       DateTime @updatedAt @db.Timestamptz
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category        Category  @relation(fields: [categoryId], references: [id])
+  sessions        Session[] @relation("ThemeSessions")
+  offeredSessions Session[] @relation("OfferedThemeSessions")
+
+  @@unique([userId, title])
+  @@index([categoryId])
+}
+
+model Credential {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  title     String
+  issuer    String
+  status    CredentialStatus @default(declared)
+  url       String?
+  createdAt DateTime         @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Slot {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @db.Uuid
+  slotAt      DateTime @db.Timestamptz
+  label       String
+  isAvailable Boolean  @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, slotAt])
+  @@index([userId, isAvailable, slotAt])
+}
+
+model Session {
+  id                 String         @id @default(uuid()) @db.Uuid
+  type               SessionType
+  orderNumber        String         @unique
+  senderId           String         @db.Uuid
+  receiverId         String         @db.Uuid
+  themeId            String         @db.Uuid
+  offeredThemeId     String?        @db.Uuid
+  question           String
+  offering           String?
+  receiverQuestion   String?
+  candidateSlots     Json
+  confirmedSlotId    String?
+  confirmedSlotLabel String?
+  drinkSnapshot      Json?
+  priceCents         Int?
+  paymentMethod      PaymentMethod?
+  paymentDeadlineAt  DateTime?      @db.Timestamptz
+  expiresAt          DateTime?      @db.Timestamptz
+  startsAt           DateTime?      @db.Timestamptz
+  endsAt             DateTime?      @db.Timestamptz
+  status             SessionStatus
+  declineReason      String?
+  meetingLink        String?
+  createdAt          DateTime       @default(now()) @db.Timestamptz
+  updatedAt          DateTime       @updatedAt @db.Timestamptz
+
+  sender         User          @relation("SenderSessions", fields: [senderId], references: [id])
+  receiver      User          @relation("ReceiverSessions", fields: [receiverId], references: [id])
+  theme         Theme         @relation("ThemeSessions", fields: [themeId], references: [id])
+  offeredTheme  Theme?        @relation("OfferedThemeSessions", fields: [offeredThemeId], references: [id])
+  reviews       Review[]
+  complaints    Complaint[]
+  payment       Payment?
+  notifications Notification[]
+
+  @@index([senderId, status])
+  @@index([receiverId, status])
+  @@index([status, expiresAt])
+  @@index([status, endsAt])
+}
+
+model Review {
+  id             String    @id @default(uuid()) @db.Uuid
+  sessionId      String    @db.Uuid
+  reviewerId     String    @db.Uuid
+  revieweeId     String    @db.Uuid
+  rating         Int
+  comment        String
+  tag            String?
+  isSwapReview   Boolean   @default(false)
+  isBlindVisible Boolean   @default(false)
+  visibleAt      DateTime? @db.Timestamptz
+  createdAt      DateTime  @default(now()) @db.Timestamptz
+
+  session  Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  reviewer User    @relation("ReviewerReviews", fields: [reviewerId], references: [id])
+  reviewee User    @relation("RevieweeReviews", fields: [revieweeId], references: [id])
+
+  @@unique([sessionId, reviewerId])
+  @@index([revieweeId, isSwapReview])
+}
+
+model Complaint {
+  id           String          @id @default(uuid()) @db.Uuid
+  sessionId    String          @db.Uuid
+  reporterId   String          @db.Uuid
+  category     String
+  description  String
+  status       ComplaintStatus @default(open)
+  adminNote    String?
+  createdAt    DateTime        @default(now()) @db.Timestamptz
+
+  session  Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  reporter User    @relation(fields: [reporterId], references: [id])
+
+  @@index([sessionId])
+}
+
+model Payment {
+  id              String        @id @default(uuid()) @db.Uuid
+  sessionId       String        @unique @db.Uuid
+  amountCents     Int
+  method          PaymentMethod
+  providerTradeNo String?
+  status          PaymentStatus @default(pending)
+  idempotencyKey  String        @unique
+  createdAt       DateTime      @default(now()) @db.Timestamptz
+  updatedAt       DateTime      @updatedAt @db.Timestamptz
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model Settlement {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @db.Uuid
+  periodStart  DateTime @db.Timestamptz
+  periodEnd    DateTime @db.Timestamptz
+  platformCents Int
+  sharerCents  Int
+  status       String   @default("pending")
+  createdAt    DateTime @default(now()) @db.Timestamptz
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, periodStart])
+}
+
+model Notification {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  type        String
+  title       String
+  body        String
+  sessionId   String?   @db.Uuid
+  readAt      DateTime? @db.Timestamptz
+  pushSentAt  DateTime? @db.Timestamptz
+  createdAt   DateTime  @default(now()) @db.Timestamptz
+
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  session Session? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([userId, readAt])
+}
